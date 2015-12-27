@@ -1,6 +1,6 @@
 #Fastnet#
 
-Fastnet aims to be a primaerily UDP-based internet protocol optimized for games, media, and interactive applications.
+Fastnet aims to be a primarily UDP-based internet protocol optimized for games, media, and interactive applications.
 This repository will include a specification and a reference implementation in rust.
 
 Unlike my other projects, Fastnet is primarily aimed at teaching me things (namely rust and the design of reliable protocols over unreliable transports).
@@ -23,3 +23,5 @@ To summarize:
 - If UDP hole-punching is required, fastnet can take over a socket after establishment.  Connections will be kept alive with heartbeats.
 
 - Fastnet will dynamically determine the best packet size to use for messages.  For some users, packet size drastically effects reliability.
+
+- The protocol will be fully specified, such that implementations in other languages are possible.
