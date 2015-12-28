@@ -36,7 +36,7 @@ This protocol is being developed as a learning project, and I expect this specif
 A packet is a chunk of data with any content of no more than 8192 bytes.
 
 A transport is a mechanism for the delivery of packets.
-Examples of transportsd include TCP and UDP.
+Examples of transports include TCP and UDP.
 If the underlying mechanism powering a transport does not work directly with packets, it is the job of the transport to abstract it.
 As a concrete example, TCP would require length prefixes.
 
@@ -190,7 +190,7 @@ Messages use the following flags:
 A message is split into packets by splitting the content and the checksum into the packet size.  Determining the packet size is described below, but the default and minimum size is 32.
 These packets then have three pieces of information prepended:
 
-- A packet-specific flag field.  At the moment, only bit 0 is used. Bit 0  is set if this is the final packet in the message.
+- A packet-specific flag field of 1 byte.  At the moment, only bit 0 is used. Bit 0  is set if this is the final packet in the message.
 
 - The message's flags field.
 
