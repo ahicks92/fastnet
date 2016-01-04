@@ -65,8 +65,10 @@ Transports must have the following characteristics.
 - A punch-capable transport must support the UDP hole-punching algorithm specified later in this specification.
 
 All implementations must provide at least the TCP and UDP transports.
-The TCP transport must be ordered, reliable, connection-based, and not punch-capable.
+The TCP transport must be reliable, connection-based, and not punch-capable.
 The UDp transport must be unordered, unreliable, connectionless, and punch-capable.
+Over IPV4, UDP's built-in checksum is optional.
+To this end, UDP must also be corruptible.
 
 Every transport must advertise the maximum packet size it supports in a way that allows the user of the implementation to obtain the value.
 Every transport must support a maximum packet size of at least 4096 bytes.
