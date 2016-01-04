@@ -233,3 +233,65 @@ Update the estimated MTU with final_mtu
 The responder is simpler.
 When the responder sees a packet whose payload is the single byte 0, it must immediately set an internal counter to 0 and respond with a packet whose payload is the single byte 1 on the channel.
 For all other packets, it must increment the count and respond with a packet whose payload is the count as a 4-byte integer.
+
+##Message Channel Packet Format##
+
+The following subsections describe the packet format for the message channels.
+For the duration of this section, understand packet to refer to a packet on a message channel.
+Furthermore, understand that the following packets are packed inside the wider context of a Fastnet packet as payloads destined to the specific message channel in question.
+
+###Common Elements###
+
+All packets begin with the flags byte:
+
+bit | description
+--- | -----------
+0 | Reliability flag
+1 | Start of message flag
+2 | End of message flag
+5 | First bit of Message Optimization Number
+6 | Second bit of message optimization number.
+7 | Final bit of message optimization number
+
+All unused bits must be zero.
+
+The reliability flag must be set if this packet is being sent reliably.
+
+The start of message flag must be set if this packet is the first packet in a message.
+The end of message flag must be set if this is the last packet in the message.
+Both the start of message and end of message flags may be set.
+This special case has defined behavior in the section on sending messages.
+
+Bits 6, 7, and 8 are the message optimization number.
+These three bits must be set to the same value for the duration of a message, but may be set to a different value for different messages.
+When set to different values for different messages, they can be used to optimize the message coalescing algorithm.
+An implementation is permitted to set them to zero, but it is recommended that they be treated as a 3-bit sequence number.
+
+All packets have two sequence numbers, though the format depends on the transport's reliability.
+In all cases, these are to be 3-byte signed integers that begin at 0, increment positively, and wrap to the minimum value of a 3-byte integer, namely -8388608.
+
+- The packet sequence number is incremented for every packet.
+
+- The reliable packet sequence number is incremented every time a reliable packet is sent.
+
+###For Reliable Transports###
+
+For a reliable transport, the packet format must be simply the above flags byte followed by the packet's payload.
+The two sequence numbers must be inferred and filled in by the receiver's implementation of the protocol.
+
+###For Unreliable Transports###
+
+There are two variants for unreliable transports:
+
+####If the packet is Sent Unreliably####
+
+In this case, the packet must consist of the flags byte, the packet sequence number, the reliable packet sequence number, and the packet's payload.
+
+####If the Packet is Sent Reliably####
+
+In this case, the packet must consist of the flags byte, the packet sequence number, the reliable packet sequence number, optionally a CRC32C checksum of the entire packet, and the payload.
+
+To compute the checksum of the packet, an implementation must encode the packet, set the checksum field to 0, and compute the CRC32C of the entire packet.
+The checksum must be included if and only if the transport is corruptible; if the transport is incorruptible, a receiver must not expect to receive the checksum.
+
+This specification chooses CRC32C because X86 and ARM contain special instructions for its computation.
