@@ -238,7 +238,7 @@ For all other packets, it must increment the count and respond with a packet who
 
 The following subsections describe the packet format for the message channels.
 For the duration of this section, understand packet to refer to a packet on a message channel.
-Furthermore, understand that the following packets are packed inside the wider context of a Fastnet packet as payloads destined to the specific message channel in question.
+Furthermore, understand that the following packets are packed inside the wider context of a Fastnet packet as payloads destined to the specific message channel in question and that all state discussed in this section (most notably the sequence numbers and message optimization number) are channel-specific.
 
 ###Common Elements###
 
@@ -268,7 +268,8 @@ When set to different values for different messages, they can be used to optimiz
 An implementation is permitted to set them to zero, but it is recommended that they be treated as a 3-bit sequence number.
 
 All packets have two sequence numbers, though the format depends on the transport's reliability.
-In all cases, these are to be 3-byte signed integers that begin at 0, increment positively, and wrap to the minimum value of a 3-byte integer, namely -8388608.
+In all cases, these must be 3-byte signed integers that begin at 0, increment positively, and wrap to the minimum value of a 3-byte integer, namely -8388608.
+
 
 - The packet sequence number is incremented for every packet.
 
@@ -295,3 +296,89 @@ To compute the checksum of the packet, an implementation must encode the packet,
 The checksum must be included if and only if the transport is corruptible; if the transport is incorruptible, a receiver must not expect to receive the checksum.
 
 This specification chooses CRC32C because X86 and ARM contain special instructions for its computation.
+
+##Sending and Receiving Packets on Message Channels##
+
+Once again, this section discusses packets in the context of a specific message channel; nothing here is binding on a non-message channel and all packets must be sent inside the wider context of a Fastnet packet.
+
+###Sending packets###
+
+Every message channel has a packet sequence number and reliable packet sequence number.
+Furthermore, every packet is either sent reliably or unreliably.
+
+To send a packet unreliably, a sender must:
+
+- Pack the packet according to the above section on packet formats.  The sequence number and reliable sequence number are the sequence numbers from the channel's current state.
+
+- Increment the packet sequence number.  Recall that sequence numbers must wrap and are 3-byte signed integers; implementations should take extra care to deal with this case.
+
+- Submit the packet to the transport.
+
+- Forget the packet exists.
+
+To send a packet reliably, an implementation must:
+
+- Pack the packet as though it is being sent unreliably.
+
+- Increment both the packet sequence number and reliable packet sequence number.
+
+- Set the reliability flag.
+
+- Submit the packet to the transport.
+
+If the transport is reliable, the sender must forget about packets being sent reliably because the transport will ensure delivery.
+If the transport is not reliable, the sender must hold on to the packet and await an acknowledgement (hereafter ack).
+The resending logic shall now be described.
+
+####Acks and Resending####
+
+The following section does not apply to reliable transports and must not be implemented for them.
+
+Channel -5 is the ack channel.
+Packets on the ack channel consist of any number of 5-byte acks packed without padding.
+An individual ack consists of the 2-byte channel identifier and the 3-byte sequence number of the packet being acknowledged.
+
+When a sender sends a reliable packet, it must hold onto a copy of the packet until such time as the receiver sends an ack on the ack channel which decodes to the packet or the connection is broken.
+Furthermore, the sender must periodically resend the packet on an interval (the resend interval) computed as follows: `(n+0.5)*r` where `n` is the number of the retry attempt and `r` is the estimated round-trip time.
+If resending fails 10 or more times, the implementation is permitted to consider the connection broken.
+
+###Receiving Packets###
+
+Receivers have a value called the ignore number.
+The ignore number's advancement strategy is described in the section on receiving messages.
+The purpose of the ignore number is to provide implementations with a method of ignoring packets which are being resent due to lost acks.
+It also serves to allow messages to be lost completely without causing slowdown.
+
+To receive a packet unreliably, a receiver must:
+
+- Infer a packet sequence number and reliable packet sequence number, if required due to the transport being reliable.
+
+- If the packet's sequence number comes before the ignore number, ignore the packet.
+
+- Record the time at which the packet was received with at least millisecond precision.  This is used in later portions of this specification.
+
+- Insert the packet into a data structure that orders packets by packet sequence number using the comes-before relationship.
+
+To receive a packet reliably, an implementation must:
+
+- Infer a packet sequence number and reliable packet sequence number, if required.
+
+- If the packet's sequence number comes-before the ignore number, send an ack and otherwise ignore the packet.  We have already received this packet and the ack was lost.
+
+- Verify that the packet's checksum matches the packet's contents.  If it doesn't, ignore the packet.
+
+- Send an ack to the server.
+
+- Insert the packet into the aforementioned data structure.
+
+Note that it is technically possible for the reliability flag to be corrupted.
+if an implementation receives an uncorrupted reliable packet with the same sequence number as an unreliable packet, it must replace the unreliable packet with the reliable one.
+Since unreliable packets are obviously unreliable and since the circumstance in which the packet is corrupted in such a manner as to set the reliability flag and produce a CRC32C checksum that matches the packet is astronomically rare, this specification assumes that the corruption check for reliable packets will weed out such packets.
+
+The data structure into which packets are being placed is unspecified, but this specification assumes that starting at the beginning and looking ahead will be inexpensive.
+
+The comes-before relationship is defined as follows: packet sequence number `a` comes-before `b` if `a < b or  (a > 0 and b < 0)`.
+Significantly large amounts of data must be lost in order for this relation to fail.
+Note that this is unfortunately not a strict ordering: you cannot use a binary tree or ordered set to store these packets.
+This is an issue for all sequence number-based protocols, and the solution is left to  implementations.
+If an algorithm for maintaining this container proves to always work, this specification will be updated to reflect it.
