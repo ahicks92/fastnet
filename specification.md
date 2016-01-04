@@ -56,7 +56,9 @@ Transports must have the following characteristics.
 
 - An ordered transport must guarantee that, if packets arrive, they arrive in order.
 
-- A reliable transport must guarantee that packets arrive if sent.  Reliable transports must be ordered transports.
+- An incorruptible transport must guarantee that, if packets arrive, they match the sent packet.
+
+- A reliable transport must guarantee that packets arrive if sent.  Reliable transports must be ordered and incorruptible transports.
 
 - A connection-based transport must handle all logic of forming and keeping a connection open.  This specification refers to transports which are not connection-based as connectionless.
 
