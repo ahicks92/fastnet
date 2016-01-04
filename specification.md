@@ -100,6 +100,10 @@ An implementation must continue to respond to queries even after a connection is
 
 ##Connection Establishment##
 
+Connections are established from client to server with the exception of UDP hole punching, described later in this specification and using a different algorithm from that described here.
+
+A Fastnet server must allow only one cobnnection from a specific IP and port.
+
 Before beginning connection establishment, an implementation must use the above query interface to establish that Fastnet is listening in an implementation-defined manner.
 This specification suggests that this be done by sending "query:fastnet" in a similar manner to the following connection handshake algorithm and looking for "query:fastnet=yes".
 
@@ -122,7 +126,6 @@ To begin a connection, a client must:
 - Send the connect request packet.
 
 - begin waiting for either the connect packet or the abort packet with a timeout of 5000 MS.  If the transport is unreliable, the client must resend the connection request packet every 200 MS during this process; otherwise, it must not.
-
 
 If the client receives the connect packet, it must parse the connection id, notify the application that the connection has been established, and begin processing packets.
 The client must disregard all other packets until it manages to receive the connect packet.
@@ -152,16 +155,17 @@ Heartbeats must consist of a signed 16-bit integer.
 
 If a client receives a positive integer on the heartbeat channel, it is to immediately echo it back to the server.
 If a server receives a negative integer on the heartbeat channel, it is to immediately echo it back to the client.
-In all other cases, the client and server should respond by sending nothing.
+In all other cases, the client and/or server must do nothing and ignore the packet.
+Zero must be considered positive.
 
 Connections must be considered broken in one of two cases:
 
 - If the transport is connection-based and provides a mechanism for determining if the connection is dropped, and this mechanism reports that this is the case.
 
-- If one end of the connection does not receive a heartbeat within a user-specified timeout whose default value is to be 20 seconds.
+- If one end of the connection does not receive a heartbeat within a user-specified timeout whose default value must be 20 seconds and whose minimum must be no less than 1 second.  For this purpose, implementations must consider both echoed heartbeats and sent heartbeats to be equivalent.
 
-Both the client and the server must report broken connections to the application as soon as they have determined that the connection is in fact broken.
-Servers must also begin rejecting packets from this client.
+Both the client and the server must report broken connections to the application without delay.
+Servers must also begin behaving as though the client had not connected in the first place; all packets save connection requests and queries must be ignored.
 
 The implementation must send heartbeats to the other end of the connection with an interval no greater than once a second.
 The heartbeat interval must be automatically adjusted such that a minimum of 20 heartbeats are sent to the other end of the connection before the connection timeout is reached.
