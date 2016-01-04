@@ -14,7 +14,6 @@ Unreliable messages may or may not arrive at the other end, but are extremely fa
 Reliable messages are intended for chat messages, status updates, or other information that absolutely must arrive.
 A reliable message stalls all other messages in the queue behind it until such time as it arrives on the other end.
 
-
 When considering the advantages of Fastnet, it is helpful and mostly accurate to think of  TCP as a train.
 If one train car derails, everything behind it stops.
 The primary advantage of Fastnet, then, is that you have the ability to use multiple train tracks at once.
@@ -36,6 +35,10 @@ A client refers to an entity who requests a connection from a server.
 A server refers to an entity capable of accepting multiple connections.
 All entities involved in Fastnet are either a client or a server, never both.
 
+A sender is an entity capable of sending messages.
+A receiver is an entity capable of receiving messages.
+Clients and servers are both senders and receivers.
+
 A packet refers to a chunk of data of any size.
 
 A message refers to a chunk of data specified by the application.  This specification places no semantic meaning on the content of messages provided by applications.
@@ -44,7 +47,7 @@ A transport means a method of moving packets from one destination to another.  T
 
 A transport's implementation refers to the concrete implementation of a transport.
 
-UDP hole-punching refers to a technique for  circumventing network Address Translation and connecting two computers behind them.
+UDP hole-punching refers to a technique for  circumventing network Address Translation and connecting two computers directly without the use of an intermediate server.
 
 ##Transports##
 
