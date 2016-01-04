@@ -80,12 +80,15 @@ All integers are sent in big-endian.
 
 This specification specifies per-channel packet formats.
 Channels 0 to 32767 must be reserved for the application and are referred to as "message channels."
-All other channels must be reserved for Fastnet's protocol and used as specified heere.
+All other channels must be reserved for Fastnet's protocol and used as specified.
+
+An implementation must prevent the user from using negative channel numbers for any purpose.
+This may be done via a type system (use unsigned integers, for example) or by generating an error.
 
 ##Status Queries##
 
 Channel -1 is the status query and connection handshake channel.
-Packets on channel -1 are ascii literals with one exception.
+Query packets on channel -1 are ascii literals.
 The following query operations must be supported:
 
 - If a client sends the string "query:fastnet" as a packet payload on channel -1, the server must respond with "query:fastnet=yes"
@@ -98,34 +101,45 @@ An implementation must continue to respond to queries even after a connection is
 ##Connection Establishment##
 
 Before beginning connection establishment, an implementation must use the above query interface to establish that Fastnet is listening in an implementation-defined manner.
+This specification suggests that this be done by sending "query:fastnet" in a similar manner to the following connection handshake algorithm and looking for "query:fastnet=yes".
+
 An implementation must not consider the connection of a connection-based transport to be the establishment of a fastnet connection.
+
 The following must always take place on channel -1 before a connection is considered established.
 
 NOTE: because reliable transports are ordered, the following algorithm cannot cause data loss on a reliable transport even though the client intensionally drops packets.
 
+There are three packets involved in the connection handshake protocol, all of which are sent on channel -1:
+
+- The connection request packet consists of the string "connect?"
+
+- The connect packet consists of the string "connected" followed by a 4-byte integer.  This integer is the connection's identifier.
+
+- The abort packet is the string "abort" followed immediately by a UTF8-encodedd error string without a trailing null.
+
 To begin a connection, a client must:
 
-- Send the string "connect?"
+- Send the connect request packet.
 
-- begin waiting for the string "connected" followed by a 4-byte integer or "abort" followed by any number of UTF8 bytes with a timeout of 5000 MS.  If the transport is unreliable, the client must send "connect?" every 200 MS during this process; otherwise, it must not.
+- begin waiting for either the connect packet or the abort packet with a timeout of 5000 MS.  If the transport is unreliable, the client must resend the connection request packet every 200 MS during this process; otherwise, it must not.
 
-If the string "connected" was received before the timeout expired, the client must consider itself connected and parse the integer.
-This integer is the connection's ID.
-Otherwise, the client must report an implementation-defined error.
 
-If the client receives the string "abort", it must abort connection immediately.
-The rest of the packet must be a UTF8-encoded string without a trailing NULL character.
-This specification places no restriction on the content, but suggests that it be used as an error condition and displayed to the user.
+If the client receives the connect packet, it must parse the connection id, notify the application that the connection has been established, and begin processing packets.
+The client must disregard all other packets until it manages to receive the connect packet.
 
-The client must disregard all other packets until it is connected.
+If the client receives the abort packet, it must report the error string.
 
-When the server sees the string "connect?", it begins establishing a connection.
+if the client times out before receiving either the connect or abort packet, the implementation must report an implementation-defined error.
+
+When the server sees the connection request packet, it begins establishing a connection.
 To establish a connection, a server must generate an integer ID.
 This ID must be unique among all currently-established connections.
-It must then echo the packet "connected" followed by the integer on channel -1 and immediately notify the application that a connection was established.
-If the server continues to receive "connect?" packets from the same client, it must respond with "connected" and the integer ID and do nothing further; it is possible for the client to not yet know that it is connected due to packet loss.
+It must then encode and send the connect packet and immediately notify the application that a connection was established.
+If the server continues to receive the connection request packet, it must continue to respond with the connect packet but do nothing further; it is possible for the client to not yet know that it is connected due to packet loss.
 
-To refuse a connection, a server must echo the packet "abort" followed by an optional UTF8 string (without a NULL character) on channel -1.
+To refuse a connection, a server must send the abort packet with an implementation-defined string as to the reason.
+This string must not be empty.
+This specification suggests "unspecified error" as a reasonable default for situations in which a string is not available, i.e. because a game does not wish to advertise that a player has been banned.
 
 Both clients and servers must expose the Fastnet connection ID for a connection in a manner that can be reached by the application developer; this ID is part of the UDP hole-punching algorithm.
 
