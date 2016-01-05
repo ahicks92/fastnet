@@ -62,16 +62,15 @@ Transports must have the following characteristics.
 
 - A connection-based transport must handle all logic of forming and keeping a connection open.  This specification refers to transports which are not connection-based as connectionless.
 
-- A punch-capable transport must support the UDP hole-punching algorithm specified later in this specification.
-
 All implementations must provide at least the TCP and UDP transports.
-The TCP transport must be reliable, connection-based, and not punch-capable.
-The UDp transport must be unordered, unreliable, connectionless, and punch-capable.
+The TCP transport must be reliable and connection-based.
+The UDp transport must be unordered, unreliable, and connectionless.
 Over IPV4, UDP's built-in checksum is optional.
 To this end, UDP must also be corruptible.
 
 Every transport must advertise the maximum packet size it supports in a way that allows the user of the implementation to obtain the value.
 Every transport must support a maximum packet size of at least 4096 bytes.
+Note that Fastnet will perform packet MTU discovery.
 
 ##Basic Packet Format##
 
@@ -102,7 +101,7 @@ An implementation must continue to respond to queries even after a connection is
 
 Connections are established from client to server with the exception of UDP hole punching, described later in this specification and using a different algorithm from that described here.
 
-A Fastnet server must allow only one cobnnection from a specific IP and port.
+A Fastnet server must allow only one connection from a specific IP and port.
 
 Before beginning connection establishment, an implementation must use the above query interface to establish that Fastnet is listening in an implementation-defined manner.
 This specification suggests that this be done by sending "query:fastnet" in a similar manner to the following connection handshake algorithm and looking for "query:fastnet=yes".
