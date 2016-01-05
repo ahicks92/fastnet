@@ -267,12 +267,11 @@ When set to different values for different messages, they can be used to optimiz
 An implementation is permitted to set them to zero, but it is recommended that they be treated as a 3-bit sequence number.
 
 All packets have two sequence numbers, though the format depends on the transport's reliability.
-In all cases, these must be 3-byte signed integers that begin at 0, increment positively, and wrap to the minimum value of a 3-byte integer, namely -8388608.
+In all cases, these must be unsigned 4-byte integers that wrap.
 
+- The packet sequence number is incremented for every packet.  It may start at any value, but implementations are strongly encouraged to start it at 0.
 
-- The packet sequence number is incremented for every packet.
-
-- The reliable packet sequence number is incremented every time a reliable packet is sent.
+- The reliable packet sequence number is incremented every time a reliable packet is sent.  The reliable packet sequence number must start at zero.
 
 ###For Reliable Transports###
 
@@ -309,7 +308,7 @@ To send a packet unreliably, a sender must:
 
 - Pack the packet according to the above section on packet formats.  The sequence number and reliable sequence number are the sequence numbers from the channel's current state.
 
-- Increment the packet sequence number.  Recall that sequence numbers must wrap and are 3-byte signed integers; implementations should take extra care to deal with this case.
+- Increment the packet sequence number using wrapping arithmetic.
 
 - Submit the packet to the transport.
 
@@ -319,7 +318,7 @@ To send a packet reliably, an implementation must:
 
 - Pack the packet as though it is being sent unreliably.
 
-- Increment both the packet sequence number and reliable packet sequence number.
+- Increment both the packet sequence number and reliable packet sequence number using wrapping arithmetic.
 
 - Set the reliability flag.
 
@@ -334,8 +333,8 @@ The resending logic shall now be described.
 The following section does not apply to reliable transports and must not be implemented for them.
 
 Channel -5 is the ack channel.
-Packets on the ack channel consist of any number of 5-byte acks packed without padding.
-An individual ack consists of the 2-byte channel identifier and the 3-byte sequence number of the packet being acknowledged.
+Packets on the ack channel consist of any number of 6-byte acks packed without padding.
+An individual ack consists of the 2-byte channel identifier and the 4-byte sequence number of the packet being acknowledged.
 
 When a sender sends a reliable packet, it must hold onto a copy of the packet until such time as the receiver sends an ack on the ack channel which decodes to the packet or the connection is broken.
 Furthermore, the sender must periodically resend the packet on an interval (the resend interval) computed as follows: `(n+0.5)*r` where `n` is the number of the retry attempt and `r` is the estimated round-trip time.
@@ -370,14 +369,17 @@ To receive a packet reliably, an implementation must:
 
 - Insert the packet into the aforementioned data structure.
 
+Updating the reliable packet sequence number is discussed in the message receiving section.
+
 Note that it is technically possible for the reliability flag to be corrupted.
 if an implementation receives an uncorrupted reliable packet with the same sequence number as an unreliable packet, it must replace the unreliable packet with the reliable one.
 Since unreliable packets are obviously unreliable and since the circumstance in which the packet is corrupted in such a manner as to set the reliability flag and produce a CRC32C checksum that matches the packet is astronomically rare, this specification assumes that the corruption check for reliable packets will weed out such packets.
 
-The data structure into which packets are being placed is unspecified, but this specification assumes that starting at the beginning and looking ahead will be inexpensive.
+The comes-before relation is defined in [RFC 1982](https://tools.ietf.org/html/rfc1982).
+It is notably undefined if two packets are separated by more than `2^32`.
+In this protocol, this equates to at least 4 GB of concecutively lost data per channel.
+This specification leaves the behavior of this case undefined.
 
-The comes-before relationship is defined as follows: packet sequence number `a` comes-before `b` if `a < b or  (a > 0 and b < 0)`.
-Significantly large amounts of data must be lost in order for this relation to fail.
-Note that this is unfortunately not a strict ordering: you cannot use a binary tree or ordered set to store these packets.
-This is an issue for all sequence number-based protocols, and the solution is left to  implementations.
-If an algorithm for maintaining this container proves to always work, this specification will be updated to reflect it.
+The data structure for packets should provide quick iteration over the contents, as the message receiving algorithm must group packets by looking ahead.
+A tree is acceptible for all defined cases of the comes-before relation, but will crash or produce gibberish (possibly without the ability to recover) in the one undefined case above.
+If an implementation fails to extract a message within a specified time, it is suggested that all unreliable packets be cleared from the container: as described below, reliable packets cannot invoke the undefined case of the comes-before relation unless at least a 4 GB message is sent.
