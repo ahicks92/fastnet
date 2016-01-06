@@ -377,9 +377,104 @@ Since unreliable packets are obviously unreliable and since the circumstance in 
 
 The comes-before relation is defined in [RFC 1982](https://tools.ietf.org/html/rfc1982).
 It is notably undefined if two packets are separated by more than `2^32`.
-In this protocol, this equates to at least 4 GB of concecutively lost data per channel.
+In this protocol, this equates to at least 4 GB of consecutively lost data per channel.
 This specification leaves the behavior of this case undefined.
 
 The data structure for packets should provide quick iteration over the contents, as the message receiving algorithm must group packets by looking ahead.
 A tree is acceptible for all defined cases of the comes-before relation, but will crash or produce gibberish (possibly without the ability to recover) in the one undefined case above.
 If an implementation fails to extract a message within a specified time, it is suggested that all unreliable packets be cleared from the container: as described below, reliable packets cannot invoke the undefined case of the comes-before relation unless at least a 4 GB message is sent.
+
+##Messages##
+
+A message refers to the minimal amount of content with meaning on a message channel.
+Messages must have a payload, a reliability flag, and checksum.
+This section describes the encoding and sending of messages.
+
+###Message Encoding and Checksum###
+
+A message's encoding consists of the message's content followed optionally by the checksum.
+
+The checksum must be computed as one of the following cases:
+
+- If the message's content is less than 16 bytes in length and the first and last bit of the messages content are different, , the checksum consists of the message's content repeated twice.
+
+- If the message's content is less than 16 bytes in length and the first and last bit of the message's content are the same, the checksum consists of the message's content with all bits flipped.  Algorithmically, this means notting each byte of the message's content.
+
+- Otherwise, the checksum consists of the md5 of the message's content.
+
+The checksum must not be included if the message is being sent reliably or if the transport is incorruptible.
+In all other cases, the checksum must be included.
+
+###Sending a Message Unreliably###
+
+to send a message unreliably, an implementation must split the message into packets which are no longer than the payload MTU.
+Specifically, this means `payload_mtu-9` byte segments (1 for flags, 4 for the packet sequence number, and 4 for the reliable packet sequence number).
+These packets must then be sent on the specified message channel with consecutive sequence numbers and forgotten.
+Implementations should set the 3-bit message optimization number to a unique value for the entire duration of the message; if an implementation opts not to, it must set the 3-bit message optimization number to zero.
+
+###Sending a Message Reliably###
+
+To send a message reliably, the implementation must split the packet into chunks no longer than the payload MTU.
+For reliable packets, this is `payload_mtu-13` (1 byte for flags, 4 for the packet sequence number, 4 for the reliable packet sequence number, and 4 for the reliable packet checksum).
+These segments must then be sent to the receiver in reliable packets.
+As with unreliable messages, an implementation should set the message optimization number to a unique value for the duration of the message; if it opts not to, the message optimization number must be set to zero.
+
+An implementation shall never send more than one reliable message on a channel at a time.
+If a second reliable message is to be sent on the same channel, the implementation must wait for the previous reliable message to be received and fully acked.
+Failure to do so will cause bugs at best: part of the message receiving algorithm, described below, relies on there being only one reliable message in progress per channel.
+
+###Receiving Messages###
+
+There is an entity called the message coalescing group (MCG).
+There is a time called the message coalescing delay (MCD).
+The MCD must be settable by the user of the implementation with at least millisecond precision and must default to 25 MS.
+Finally, there is an entity called the message coalescing group modification time (MCGMT).
+
+The following algorithm must be executed on a per-message-channel basis every time an uncorrupted packet with the end of message flag is received.
+
+The MCG is computed by looking at the container of messages for the channel in question.
+The following description is only conseptual.
+An implementation is encouraged to use a more efficient algorithm.
+
+To compute the MCG:
+
+- Start with all packets in the packet container for the channel in question.
+
+- Move the end of the MCG to the first packet with the end of message flag set, if any.
+
+- if the first packet in the MCG is not the first packet in the MCG with the start of message flag set, move the end of the MCG to the packet immediately before the first packet with the start of message flag set.
+
+- Finally, consider the message optimization numbers.  Move the end of the MCG to the first packet with a different message optimization number than that of the packet at the beginning of the MCG.
+
+The MCGMT must be computed as the maximum of the reception times of the packets in the MCG.
+
+At this point, the MCG consists of all packets which may be in one message.
+The MCG is now in one of three states: aborted, completed, or expired.
+AN implementation must choose the first of the following conditions which applies:
+
+- First, if the first packet of the MCG was sent unreliably and the reliable packet sequence number in the first packet differs from that found in the last reliable packet received on this channle, the MCG is aborted.
+
+- Next, if the first packet in the MCG has the start of message flag set, the last packet in the MCG has the end of message flag set, and the sequence numbers of all packets in the MCG are consecutive, then the MCG is completed.
+
+- Next, if the MCGMT is less than MCD seconds ago or the first packet in the MCG was sent reliably, the MCG is aborted.
+
+- Otherwise, the MCG is expired.
+
+What happens next depends on the state of the MCG.
+
+If the MCG is aborted, this algorithm stops until the next time a packet with the end of message flag set is received.
+
+If the MCG is completed, the message in the MCG is a complete message.
+it shall be extracted and checked for corruption if applicable (the checksum is only sent if the message is being sent unreliably on a corruptible transport; reliable messages and incorruptible transports handle this at a lower level).
+if the message is not corrupted, it must be delivered  to the application immediately.
+
+If the MCG is expired, all packets in the MCG are dropped immediately.
+
+Finally, if the MCG was completed or expired, the ignore number must be set to one more than the packet sequence number of the last packet in the MCG mod  `2^32`.
+
+The reason for the one reliable message at a time constraint is due to the updating of the ignore number.
+We need a way to ignore duplicate packets or packets that may be being resent due to lost acks from the receiver.
+To this end and described above, we ignore packets which come-before the ignore number by the relation defined in RFC 1982.
+Unfortunately, this means that if we send two reliable messages and the second arrives first, the ignore number will now ignore all packets from the first message.
+This would violate the guarantee of reliability, even though acks were properly received.
+It would also be possible to fix this by adding an additional 4-byte value to the header of the packet, but the point of this library is to optimize for unreliable message sending and multiple streams; applications that need to use one efficient , reliable stream should opt in to TCP.
