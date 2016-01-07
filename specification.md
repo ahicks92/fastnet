@@ -363,7 +363,7 @@ To receive a packet unreliably, a receiver must:
 
 - Infer a packet sequence number and reliable packet sequence number, if required due to the transport being reliable.
 
-- If the packet's sequence number comes before the ignore number, ignore the packet.
+- If the packet's sequence number comes-before the ignore number, ignore the packet.
 
 - Record the time at which the packet was received with at least millisecond precision.  This is used in later portions of this specification.
 
@@ -373,7 +373,7 @@ To receive a packet reliably, an implementation must:
 
 - Infer a packet sequence number and reliable packet sequence number, if required.
 
-- If the packet's sequence number comes-before the ignore number, send an ack and otherwise ignore the packet.  We have already received this packet and the ack was lost.
+- If the packet's sequence number comes-before the ignore number, send an ack and otherwise ignore the packet.  We have already received this packet and the ack was lost on the way to the sender.
 
 - Verify that the packet's checksum matches the packet's contents.  If it doesn't, ignore the packet.
 
@@ -385,12 +385,13 @@ Updating the reliable packet sequence number is discussed in the message receivi
 
 Note that it is technically possible for the reliability flag to be corrupted.
 if an implementation receives an uncorrupted reliable packet with the same sequence number as an unreliable packet, it must replace the unreliable packet with the reliable one.
-Since unreliable packets are obviously unreliable and since the circumstance in which the packet is corrupted in such a manner as to set the reliability flag and produce a CRC32C checksum that matches the packet is astronomically rare, this specification assumes that the corruption check for reliable packets will weed out such packets.
+Since unreliable packets are obviously unreliable and since the circumstance in which the packet is corrupted in such a manner as to set the reliability flag and produce a CRC32C checksum that matches the packet is astronomically rare, this specification assumes that the corruption check for reliable packets will weed them out.
+Corrupted reliable packets are handled at a higher level.
 
 The comes-before relation is defined in [RFC 1982](https://tools.ietf.org/html/rfc1982).
 It is notably undefined if two packets are separated by more than `2^32`.
 In this protocol, this equates to at least 4 GB of consecutively lost data per channel.
-This specification leaves the behavior of this case undefined.
+Due to the astronomical rarity of this case, this specification leaves the behavior of this case undefined.
 
 The data structure for packets should provide quick iteration over the contents, as the message receiving algorithm must group packets by looking ahead.
 A tree is acceptible for all defined cases of the comes-before relation, but will crash or produce gibberish (possibly without the ability to recover) in the one undefined case above.
@@ -440,15 +441,17 @@ Failure to do so will cause bugs at best: part of the message receiving algorith
 There is an entity called the message coalescing group (MCG).
 There is a time called the message coalescing delay (MCD).
 The MCD must be settable by the user of the implementation with at least millisecond precision and must default to 25 MS.
-Finally, there is an entity called the message coalescing group modification time (MCGMT).
+Finally, there is a time called the message coalescing group modification time (MCGMT).
 
-The following algorithm must be executed on a per-message-channel basis every time an uncorrupted packet with the end of message flag is received.
+The following algorithm must be executed on a per-message-channel basis every time an unreliable or a reliable and uncorrupted packet with the end of message flag is received.
 
-The MCG is computed by looking at the container of messages for the channel in question.
+The MCG is conceptually a pair of integers specifying the beginning and end of the range of packets under consideration.
+The beginning of the MCG is always 0.
+The end of the MCG is computed by looking at the container of messages for the channel in question and applying the following refignments.
 The following description is only conseptual.
-An implementation is encouraged to use a more efficient algorithm.
+An implementation is encouraged to use a more efficient algorithm but must act as if it had implemented the following less efficient one.
 
-To compute the MCG:
+To compute the MCG's end:
 
 - Start with all packets in the packet container for the channel in question.
 
@@ -484,7 +487,7 @@ If the MCG is expired, all packets in the MCG are dropped immediately.
 
 Finally, if the MCG was completed or expired, the ignore number must be set to one more than the packet sequence number of the last packet in the MCG mod  `2^32`.
 
-The reason for the one reliable message at a time constraint is due to the updating of the ignore number.
+The reason for the one reliable message at a time constraint mentioned in the message sending section is due to the updating of the ignore number.
 We need a way to ignore duplicate packets or packets that may be being resent due to lost acks from the receiver.
 To this end and described above, we ignore packets which come-before the ignore number by the relation defined in RFC 1982.
 Unfortunately, this means that if we send two reliable messages and the second arrives first, the ignore number will now ignore all packets from the first message.
