@@ -1,27 +1,21 @@
 #Fastnet#
 
-Fastnet aims to be a primarily UDP-based internet protocol optimized for games, media, and interactive applications.
-This repository will include a specification and a reference implementation in rust.
+Fastnet aims to be a multiplexed, message-based protocol over UDP.
+It splits a physical connection into 32768 streams, each of which guarantees in-order delivery of messages.
+Every message may be sent either reliably or unreliably.
+In addition, Fastnet aims to support P2P connections via UDP hole punching, the ability to efficiently distribute large assets and other data to clients, and efficient TCP fallback.
+Finally, Fastnet will be fully specified.
+
+This repository includes the specificationn.
+When complete, a reference implementation will be implemented in Rust.
+For ease of maintenance, the Rust implementation of this protocol will live in an as-of-yet uncreated repository separate from this one.
+When the repository exists, it will be linked here.
 
 Unlike my other projects, Fastnet is primarily aimed at teaching me things (namely rust and the design of reliable protocols over unreliable transports).
-When finished, Fastnet will offer a message-based protocol with the ability to send multiple streams of data in parallel on the same connection.
-The advantages are intended to be those of [enet](http://enet.bespin.org/) with a  few additions.
-To summarize:
+I anticipate that Fastnet will be useful, but other libraries already implement much of this functionality.
+That said and in so far as I know, you have to go to C++ or one of the big game engine/distribution platforms to find everything here with a convenient interface.
 
-- A client connects to a server, in a bidirectional manner.
-
-- Both ends of the connection may send messages of any reasonable size to the other end.
-
-- Messages can be assigned to channels.  All messages on the same channel arrive in order, but ordering between different channels provides no guarantees.
-
-- Some messages may be flagged as reliable.  Reliable messages are always delivered, or the connection drops.
-
-- If messages arrive, they are extremely unlikely to be corrupted.
-
-- If UDP is blocked, falling back to TCP is possible.  While optimized for UDP, Fastnet aims to work over any transport.
-
-- If UDP hole-punching is required, fastnet can take over a socket after establishment.  Connections will be kept alive with heartbeats.
-
-- Fastnet will dynamically determine the best packet size to use for messages.  For some users, packet size drastically effects reliability.
-
-- The protocol will be fully specified, such that implementations in other languages are possible.
+The biggest advantage of this protocol, however, is that it is fully and formally specified.
+Consequently, others may learn from and maintain it without having to read the code from top to bottom.
+A not insignificant part of my motivation for this project is the documentation: finding good resources on the designs of such protocols as offered here is surprisingly difficult, and source code for libraries providing them is often large, cumbersome, and uncommented.
+Furthermore, having a specification makes it easier for third parties to identify possible security issues and evaluate Fastnet as compared to other alternatives.
