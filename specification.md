@@ -87,16 +87,18 @@ This may be done via a type system (use unsigned integers, for example) or by ge
 ##Status Queries##
 
 Channel -1 is the status query and connection handshake channel.
-Query packets on channel -1 are ascii literals.
-The following query operations must be supported:
+Queries must be responded to in both directions.
+A query packet consists of the channel specifier, the byte 0, the number of the query to be performed as a 16-bit integer, and an optional argument.
+A response packet consists of the byte 1, the number sent in the query packet, and a response as specified in the following table.
+All of the following query operations must be implemented:
 
-- If a client sends the string "query:fastnet" as a packet payload on channel -1, the server must respond with "query:fastnet=yes"
+number | description | Arguments | response
+------ | ----------- | --------- | --------
+0 | Is Fastnet listening on this port? | None | one byte, 0 if no, 1 iif yes.
+1 | version query | None | The version of the protocol as a string without terminating null. Currently this is "1.0"
+2 | extension query. | Name of the extension as an ASCII string without terminating NULL | the byte 0 (not supported) or the byte 1 (supported) followed by the extension's name as sent by the client without terminating NULL.
 
-- If the client sends "query:version", the server must respond with "query:version=1.0"
-
-- If the client sends "query:extension:name", where name is an extension, the server must respond with "query:extension:name=yes" if the server supports the extension or "query:extension:name=no" if it does not.
-
-An implementation shall not place limits on the number of times that a query may be requested from the server.
+An implementation shall not place limits on the number of times that a query may be sent and must always respond.
 An implementation must continue to respond to queries even after a connection is established.
 
 Extension names must be of the form "manufacturer_extensionname" and no longer than 64 characters.  "manufacturer" should be replaced with a string unique to the person or organization implementing the extension and "extensionname" with a string unique to the extension itself.
@@ -116,7 +118,7 @@ Connections are established from client to server with the exception of UDP hole
 A Fastnet server must allow only one connection from a specific IP and port.
 
 Before beginning connection establishment, an implementation must use the above query interface to establish that Fastnet is listening in an implementation-defined manner.
-This specification suggests that this be done by sending "query:fastnet" in a similar manner to the following connection handshake algorithm and looking for "query:fastnet=yes".
+This specification suggests that this be done in a similar manner to the following connection handshake algorithm but using the is Fastnet listening query (query number 0).
 
 An implementation must not consider the connection of a connection-based transport to be the establishment of a fastnet connection.
 
@@ -126,11 +128,11 @@ NOTE: because reliable transports are ordered, the following algorithm cannot ca
 
 There are three packets involved in the connection handshake protocol, all of which are sent on channel -1:
 
-- The connection request packet consists of the string "connect?"
+- The connection request packet consists of the single byte 2.
 
-- The connect packet consists of the string "connected" followed by a 4-byte integer.  This integer is the connection's identifier.
+- The connect packet consists of the single byte 3 followed by a 4-byte integer.  This integer is the connection's identifier.
 
-- The abort packet is the string "abort" followed immediately by a UTF8-encodedd error string without a trailing null.
+- The abort packet consists of the single byte 4 followed immediately by a UTF8-encodedd error string without a trailing null.
 
 To begin a connection, a client must:
 
@@ -139,7 +141,7 @@ To begin a connection, a client must:
 - begin waiting for either the connect packet or the abort packet with a timeout of 5000 MS.  If the transport is unreliable, the client must resend the connection request packet every 200 MS during this process; otherwise, it must not.
 
 If the client receives the connect packet, it must parse the connection id, notify the application that the connection has been established, and begin processing packets.
-The client must disregard all other packets until it manages to receive the connect packet.
+The client must disregard all other packets including queries until it manages to receive the connect packet.
 
 If the client receives the abort packet, it must report the error string.
 
