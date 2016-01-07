@@ -225,20 +225,20 @@ while mtu < transport.maximum_size:
         Wait for three times the estimated round-trip time.
     for i from 1 to send_count:
         send a packet of random contents whose payload is mtu bytes long.
-        Wait for the interval. If a packet from the responder is received and is 4 bytes long:
+        Wait for the interval. If a packet from the responder is received and len(packet.payload) == 4:
             count <- max(count, packet.payload.as_i32)
-    Wait for the final_timeout.  If a packet is received on the channel with payload of 4 bytes during this time:
+    Wait for the final_timeout.  If a packet is received on the channel and len(packet.payload) == 4:
         count <- max(count, packet.payload.as_i32)
     percent = count/send_count
     if first:
         initial_percent <- percent
         first <- false
     if percent < initial_percent and initial_percent-percent > 0.1:
-        break because we've gotten significantly worse.
+        break
     else if prev_count != 0:
         prev_percent = prev_count/sent_count
         if percent < prev_percent and percent-prev_percent > 0.05:
-            break because we found a sharp drop-off.
+            break
     final_mtu <- mtu
 Update the estimated MTU with final_mtu
 ```
