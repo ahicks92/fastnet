@@ -273,12 +273,10 @@ The reliability flag must be set if this packet is being sent reliably.
 The start of message flag must be set if this packet is the first packet in a message.
 The end of message flag must be set if this is the last packet in the message.
 Both the start of message and end of message flags may be set.
-This special case has defined behavior in the section on sending messages.
 
 Bits 6, 7, and 8 are the message optimization number.
-These three bits must be set to the same value for the duration of a message, but may be set to a different value for different messages.
+These three bits must be set to the same value for the duration of a message, but should be set to a different value for different messages.
 When set to different values for different messages, they can be used to optimize the message coalescing algorithm.
-An implementation is permitted to set them to zero, but it is recommended that they be treated as a 3-bit sequence number.
 
 All packets have two sequence numbers, though the format depends on the transport's reliability.
 In all cases, these must be unsigned 4-byte integers that wrap.
