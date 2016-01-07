@@ -94,8 +94,20 @@ The following query operations must be supported:
 
 - If the client sends "query:version", the server must respond with "query:version=1.0"
 
+- If the client sends "query:extension:name", where name is an extension, the server must respond with "query:extension:name=yes" if the server supports the extension or "query:extension:name=no" if it does not.
+
 An implementation shall not place limits on the number of times that a query may be requested from the server.
 An implementation must continue to respond to queries even after a connection is established.
+
+Extension names must be of the form "manufacturer_extensionname" and no longer than 64 characters.  "manufacturer" should be replaced with a string unique to the person or organization implementing the extension and "extensionname" with a string unique to the extension itself.
+Extension and manufacturer names must be ASCII and lower-case.
+This specification reserves the manufacturer string "fastnet" for official fastnet extensions.
+An implementor must refrain from use of extensions with names of the form "fastnet_xxx".
+An implementation must not make use of an extension without first receiving a positive query as to the server's support for said extension.
+
+This specification defines two extensions: "fastnet_p2p" and "fastnet_file".
+In order to insure uniqueness, implementors wishing to implement extensions must open a pull request or issue against the GitHub repository containing this specification in order to have a name and description added to the extension index.
+Implementors are encouraged in the strongest terms to specify their extensions publicly so that other Fastnet implementations may make use of them.
 
 ##Connection Establishment##
 
