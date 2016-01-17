@@ -49,6 +49,34 @@ A transport's implementation refers to the concrete implementation of a transpor
 
 UDP hole-punching refers to a technique for  circumventing network Address Translation and connecting two computers directly without the use of an intermediate server.
 
+##Specifying packet Format##
+
+This specification uses a mostly self-explanatory language to specify packet formats, and this section may likely be skipped.  For clarity:
+
+- Nonterminals are written in all lower case and followed by `:tt`, i.e. `example:i8`  `tt` is a type specifier.
+
+- The recognized type suffixes are `u`, `i`, `s`, and `p`.  
+
+- `u` and `i` represent unsigned and signed integers stored in network byte order using twos complement.  Each is followed by a bit count, for example `u8` or `i16`.  The bit count must be a multiple of 8.
+
+- `s` represents length-prefixed strings of up to 255 bytes, encoded as UTF8.  The length prefix is 1 byte.  `s` may be followed by a length range in braces, i.e. `s{0, 2}`  The default range is `{1, 255}`.
+
+- `p` stands for payload, an arbitrary sequence of bytes.  `p` segments will be described further by the specification.  They are usually the last field of a packet.
+
+- Space means concatenate without padding.  For example, `part1:i8 part2:i8` is two 1-byte signed integers without padding.
+
+- `=` means definition.  The order of definitions does not matter. Defined sections can be used in other definitions without type suffixes (because this is already defined in the definition being used).
+
+- Integer literals are noted as `1:u8`, `-5:i16`, etc.  String literals are `"this is a test."`.
+
+- `[]` means optional.  The specified section may or may not be included, as specified in documentation of the packet's use.
+
+- `|` means or.  `|` has a precedence lower than concatenation.
+
+- `()` is for grouping, as usual.
+
+The rest of this specification demonstrates this language, which is mostly self-explanatory in practice.
+
 ##Transports##
 
 A transport is a method for moving packets from one destination to another.
