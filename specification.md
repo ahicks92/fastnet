@@ -57,7 +57,7 @@ This specification uses a mostly self-explanatory language to specify packet for
 
 - The recognized type suffixes are `u`, `i`, `s`, and `p`.  
 
-- `u` and `i` represent unsigned and signed integers stored in network byte order using twos complement.  Each is followed by a bit count, for example `u8` or `i16`.  The bit count must be a multiple of 8.
+- `u` and `i` represent unsigned and signed integers stored in network byte order using twos complement.  Each is followed by a bit count, for example `u8` or `i16`.  The bit count must be a multiple of 8.  All math on integer types must be performed mod `2^n` where n is the number of bits in the integer (put another way, math wraps).
 
 - `s` represents length-prefixed strings of up to 255 bytes, encoded as UTF8.  The length prefix is 1 byte.  `s` may be followed by a length range in braces, i.e. `s{0, 2}`  The default range is `{1, 255}`.
 
@@ -102,11 +102,14 @@ Note that Fastnet will perform packet MTU discovery.
 
 ##Basic Packet Format##
 
-A Fastnet packet must consist of a 2-byte channel identifier as a signed 16-bit integer followed by a packet payload of no more than the maximum packet size of the transport minus 2 bytes.
-All integers are sent in big-endian.
+Basic packet format:
 
-This specification specifies per-channel packet formats.
-Channels 0 to 32767 must be reserved for the application and are referred to as "message channels."
+```
+fastnet_packet = channel:i16 payload:p
+```
+
+A Fastnet packet must consist of a 2-byte channel identifier as a signed 16-bit integer followed by a packet payload of no more than the maximum packet size of the transport minus 2 bytes.
+Channels 0 to 32767 must be reserved for the application and are referred to as message channels.
 All other channels must be reserved for Fastnet's protocol and used as specified.
 
 An implementation must prevent the user from using negative channel numbers for any purpose.
@@ -114,32 +117,44 @@ This may be done via a type system (use unsigned integers, for example) or by ge
 
 ##Status Queries##
 
+Format:
+```
+query = -1:i16 0:u8 query_identifier:u16 [argument:p]
+response = -1:i16 1:u8 query_identifier:u16 response_payload:p
+```
+
 Channel -1 is the status query and connection handshake channel.
 Queries must be responded to in both directions.
-A query packet consists of the channel specifier, the byte 0, the number of the query to be performed as a 16-bit integer, and an optional argument.
-A response packet consists of the byte 1, the number sent in the query packet, and a response as specified in the following table.
 All of the following query operations must be implemented:
 
-number | description | Arguments | response
------- | ----------- | --------- | --------
-0 | Is Fastnet listening on this port? | None | one byte, 0 if no, 1 iif yes.
-1 | version query | None | The version of the protocol as a string without terminating null. Currently this is "1.0"
-2 | extension query. | Name of the extension as an ASCII string without terminating NULL | the byte 0 (not supported) or the byte 1 (supported) followed by the extension's name as sent by the client without terminating NULL.
+- 0 is a query to determine if Fastnet is listening on a specified port.  The response payload takes the form `0:u8` for no and `1:u8` for yes.  The argument is not used.
+
+- 1 is the version query.  The response payload takes the form `version_string:s`, currently "1.0".
+
+- 2 is the extension supported query.  The argument takes the form `name:s`.  Names starting with the prefix "fastnet_" are reserved for this specification.  The response payload takes the form `name:s supported:u8` where `name` matches the sent name and `supported` is 1 if and only if the extension is supported, otherwise 0.
 
 An implementation shall not place limits on the number of times that a query may be sent and must always respond.
 An implementation must continue to respond to queries even after a connection is established.
 
-Extension names must be of the form "manufacturer_extensionname" and no longer than 64 characters.  "manufacturer" should be replaced with a string unique to the person or organization implementing the extension and "extensionname" with a string unique to the extension itself.
+Extension names must be of the form "manufacturer_extensionname."  "manufacturer" should be replaced with a string unique to the person or organization implementing the extension and "extensionname" with a string unique to the extension itself.
 Extension and manufacturer names must be ASCII and lower-case.
 This specification reserves the manufacturer string "fastnet" for official fastnet extensions.
-An implementor must refrain from use of extensions with names of the form "fastnet_xxx".
+An implementer must refrain from use of extensions with names of the form "fastnet_xxx".
 An implementation must not make use of an extension without first receiving a positive query as to the server's support for said extension.
 
 This specification defines two extensions: "fastnet_p2p" and "fastnet_file".
-In order to insure uniqueness, implementors wishing to implement extensions must open a pull request or issue against the GitHub repository containing this specification in order to have a name and description added to the extension index.
-Implementors are encouraged in the strongest terms to specify their extensions publicly so that other Fastnet implementations may make use of them.
+In order to insure uniqueness, implementers wishing to implement extensions must open a pull request or issue against the GitHub repository containing this specification in order to have a name and description added to the extension index.
+Implementers are encouraged in the strongest terms to specify their extensions publicly so that other Fastnet implementations may make use of them.
 
 ##Connection Establishment##
+
+packets:
+
+```
+connect = -1:i16 2:u8
+connected = -1:i16 3:u8 connection_identifier:u32
+aborted = -1:i16 4:u8 error:s
+```
 
 Connections are established from client to server with the exception of UDP hole punching, described later in this specification and using a different algorithm from that described here.
 
@@ -152,47 +167,40 @@ An implementation must not consider the connection of a connection-based transpo
 
 The following must always take place on channel -1 before a connection is considered established.
 
-NOTE: because reliable transports are ordered, the following algorithm cannot cause data loss on a reliable transport even though the client intensionally drops packets.
-
-There are three packets involved in the connection handshake protocol, all of which are sent on channel -1:
-
-- The connection request packet consists of the single byte 2.
-
-- The connect packet consists of the single byte 3 followed by a 4-byte integer.  This integer is the connection's identifier.
-
-- The abort packet consists of the single byte 4 followed immediately by a UTF8-encodedd error string without a trailing null.
-
 To begin a connection, a client must:
 
-- Send the connect request packet.
+- Send the connect packet.
 
-- begin waiting for either the connect packet or the abort packet with a timeout of 5000 MS.  If the transport is unreliable, the client must resend the connection request packet every 200 MS during this process; otherwise, it must not.
+- begin waiting for either the connected packet or the aborted packet with a timeout of 5000 MS.  If the transport is unreliable, the client must resend the connect packet every 200 MS during this process; otherwise, it must not.
 
-If the client receives the connect packet, it must parse the connection id, notify the application that the connection has been established, and begin processing packets.
-The client must disregard all other packets including queries until it manages to receive the connect packet.
+If the client receives the connected packet, it must parse the connection id, notify the application that the connection has been established, and begin processing packets.
+The client must disregard all other packets including queries until it manages to receive the connected packet.
 
-If the client receives the abort packet, it must report the error string.
+If the client receives the aborted packet, it must report the error string to the user of the implementation in an implementation-defined manner.
 
-if the client times out before receiving either the connect or abort packet, the implementation must report an implementation-defined error.
+if the client times out before receiving either the connected or aborted packet, the implementation must report an implementation-defined error.
 
-When the server sees the connection request packet, it begins establishing a connection.
-To establish a connection, a server must generate an integer ID.
-This ID must be unique among all currently-established connections.
-It must then encode and send the connect packet and immediately notify the application that a connection was established.
-If the server continues to receive the connection request packet, it must continue to respond with the connect packet but do nothing further; it is possible for the client to not yet know that it is connected due to packet loss.
+When the server sees the connect packet, it begins establishing a connection.
+To establish a connection, a server must generate an unsigned 32-bit integer ID.
+This ID must be unique among all currently-established connections to said server.
+It must then encode and send the connected packet and immediately notify the application that a connection was established.
+If the server continues to receive the connection request packet, it must continue to respond with the connected packet but do nothing further; it is possible for the client to not yet know that it is connected due to packet loss.
 
-To refuse a connection, a server must send the abort packet with an implementation-defined string as to the reason.
+To refuse a connection, a server must send the aborted packet with an implementation-defined string as to the reason.
 This string must not be empty.
 This specification suggests "unspecified error" as a reasonable default for situations in which a string is not available, i.e. because a game does not wish to advertise that a player has been banned.
 
-Both clients and servers must expose the Fastnet connection ID for a connection in a manner that can be reached by the application developer; this ID is part of the UDP hole-punching algorithm.
+Both clients and servers must expose the Fastnet connection ID for a connection in a manner that can be reached by the application developer; this ID is part of the UDP hole-punching algorithm as well as a crutial piece of information for many extensions.
 
 Servers must ignore any packets not involved in an active connection.
 
 ##The Heartbeat Channel, Connection Breaking, and Round-trip Estimation##
+Packet format:
+```
+heartbeat = -2:i16 payload:i16
+```
 
 Channel -2 must be the heartbeat channel.
-Heartbeats must consist of a signed 16-bit integer.
 
 If a client receives a positive integer on the heartbeat channel, it is to immediately echo it back to the server.
 If a server receives a negative integer on the heartbeat channel, it is to immediately echo it back to the client.
@@ -216,308 +224,195 @@ The default round-trip time must be 200 MS.
 The most basic conforming algorithm for packet estimation is to use this default, but it is suggested that implementations take advantage of the heartbeat channel to perform a smarter estimate.
 
 ##Determining Payload MTU##
+Packets:
+```
+reset_mtu_count = (-3:i16 | -4:i16) 0:u8
+mtu_count_was_reset = (-3:i16 | -4:i16) 1:u8
+mtu_estimate = (-3:i16 | -4:i16) payload:p
+mtu_response = (-3:i16 | -4:i16) count:u32
+```
 
-The Payload MTU refers to the maximum size of a packet's payload and should never be allowed to fall below 32.
-Regardless of the determined payload MTU, either end of the connection must be prepared for packets of up to the maximum packet size as specified by the transport.
-For reliable transports, the payload MTU  must be 2 minus the maximum packet size supported by the transport.
+We refer to the MTU as the length of the largest packet that is received by the other end of the connection with enough reliability to be useful.
+Maximizing the MTU is important to avoid excessive fragmentation.
+In this specification, the MTU excludes the initial 2-byte channel count.
+
+Regardless of the determined MTU, either end of the connection must be prepared for packets of up to the maximum packet size as specified by the transport.
+For reliable transports, the MTU  must be 2 minus the maximum packet size supported by the transport.
 Reliable transports must not perform the following algorithm and should ignore the rest of this section.
 
-The default payload MTU for unreliable transports is 32.
+The default and minimum MTU for unreliable transports is 32.
+This gives a 34-byte packet before fragmentation.
+
 If the transport provides a mechanism for determining the MTU, the transport's algorithm should be delegated to and the rest of this section should be ignored.
 In this case, an implementation should determine the transport's MTU and arrive at the payload MTU by subtracting 2.
 
 Channels -3 and -4 are the server MTU and client MTU estimation channels respectively.
-Both the client and server must perform the following algorithm at connection start-up and periodically thereafter.
-The period is implementation-defined.
-the only difference between the client and server is which channel they are sending on.
 We refer to them as the estimator and the responder, and to the channel of the estimator as the channel.
 Both the client and the server must be capable of playing both roles simultaneously.
+The server is the estimator on channel -3.  The client is the estimator on channel -4.
 
-The estimator must implement the following pseudocode, repeating the algorithm every period.
+The responder is simplest.
+When the responder sees the reset_mtu_count packet, it must reset an internal counter to 0 and send the mtu_count_was_reset packet.
+When it sees the mtu_estimate packet, it must increment the internal counter and respond with the mtu_response packet, encoding the count.
 
-```
-interval <- an implementation-defined interval.
-mtu <- 32 (the estimated payload MTU)
-estimated_mtu <- 32 (the final estimated MTU)
-final_timeout <- an implementation-defined timeout, should be on the order of 1 second.
-prev_count <- 0
-count <- 0
-initial_percent <- 0
-first <- true
-while mtu < transport.maximum_size:
-    prev_count <- count
-    count <- 0
-    send_count <- 100
-    while the client has not seen a packet on the channel whose value is 1:
-        send a packet on the channel containing the single byte 0.
-        Wait for three times the estimated round-trip time.
-    for i from 1 to send_count:
-        send a packet of random contents whose payload is mtu bytes long.
-        Wait for the interval. If a packet from the responder is received and len(packet.payload) == 4:
-            count <- max(count, packet.payload.as_i32)
-    Wait for the final_timeout.  If a packet is received on the channel and len(packet.payload) == 4:
-        count <- max(count, packet.payload.as_i32)
-    percent = count/send_count
-    if first:
-        initial_percent <- percent
-        first <- false
-    if percent < initial_percent and initial_percent-percent > 0.1:
-        break
-    else if prev_count != 0:
-        prev_percent = prev_count/sent_count
-        if percent < prev_percent and percent-prev_percent > 0.05:
-            break
-    final_mtu <- mtu
-Update the estimated MTU with final_mtu
-```
+This specification leaves the algorithm of the estimator unspecified for now, as implementation experience is required to properly design it.
+The minimum conforming algorithm is to use the default MTU of 32.
+This specification mandates the  following only:
 
-The responder is simpler.
-When the responder sees a packet whose payload is the single byte 0, it must immediately set an internal counter to 0 and respond with a packet whose payload is the single byte 1 on the channel.
-For all other packets, it must increment the count and respond with a packet whose payload is the count as a 4-byte integer.
+- The default and minimum MTU is 32.
+
+- The client and server must perform MTU estimation immediately upon the establishment of the connection.
+
+It is strongly recommended that the MTU estimation algorithms be re-executed periodically.
+
+Note that the payload of the mtu_estimate packet is arbitrary.  It should be set to random bytes and is used to estimate the largest packet that arrives somewhat reliably at the other end of connections.
+A basic MTU estimation algorithm is to send `n` packets of some fixed size, wait a while, and see what the largest received count was.
+Pseudocode will be added to this section when an algorithm proves itself.
 
 ##Message Channel Packet Format##
 
-The following subsections describe the packet format for the message channels.
-For the duration of this section, understand packet to refer to a packet on a message channel.
-Furthermore, understand that the following packets are packed inside the wider context of a Fastnet packet as payloads destined to the specific message channel in question and that all state discussed in this section (most notably the sequence numbers and message optimization number) are channel-specific.
+The following is the complete grammar for a packet on a message channel.
 
-###Common Elements###
+```
+message_packet = packet_header [reliability_checksum] [message_header] payload:p
+packet_header = channel:i16 packet_flags:u8 [sequence_number:u32 ]
+reliability_checksum = checksum:u32
+message_header = message_flags:u8 [reliable_message_count:u32]
+ack = -5:i16 channel:i16 sequence_number:u32
+```
 
-All packets begin with the flags byte:
+###packet_header###
 
-bit | description
---- | -----------
-0 | Reliability flag
-1 | Start of message flag
-2 | End of message flag
-5 | First bit of Message Optimization Number
-6 | Second bit of message optimization number.
-7 | Final bit of message optimization number
+The packet header consists of the channel on which the packet is being sent, followed by a 1-byte flags byte.
+Unused bits must be set to 0.
+The following flags are defined:
 
-All unused bits must be zero.
+- 0 is the start of message flag.  This flag is set if and only if this is the first packet in a message.
 
-The reliability flag must be set if this packet is being sent reliably.
+- 1 is the end of message flag.  It is set if and only if this packet is the last packet in a message.
 
-The start of message flag must be set if this packet is the first packet in a message.
-The end of message flag must be set if this is the last packet in the message.
-Both the start of message and end of message flags may be set.
+- 2 is the reliability flag.  It must be set if and only if this packet was sent reliably.
 
-Bits 6, 7, and 8 are the message optimization number.
-These three bits must be set to the same value for the duration of a message, but should be set to a different value for different messages.
-When set to different values for different messages, they can be used to optimize the message coalescing algorithm.
+The sequence number must be present if and only if the transport is unreliable.
+In all other cases, the sequence number must be inferred by incrementing an internal counter by 1 every time a packet is received.
 
-All packets have two sequence numbers, though the format depends on the transport's reliability.
-In all cases, these must be unsigned 4-byte integers that wrap.
+###reliability_checksum###
 
-- The packet sequence number is incremented for every packet.  It may start at any value, but implementations are strongly encouraged to start it at 0.
+The reliability checksum ensures that a reliable packet arrives uncorrupted.
+It is present if and only if the reliability flag is set.
+To compute it, encode the packet completely, set the checksum portion to zero, and compute the CRC32C checksum over the packet.
+This includes the channel count.
 
-- The reliable packet sequence number is incremented every time a reliable packet is sent.  The reliable packet sequence number must start at zero.
+A reliable packet is not considered to have arrived until the checksum matches.
+Receivers must verify the checksums of incoming reliable packets.
 
-###For Reliable Transports###
+###message_header###
 
-For a reliable transport, the packet format must be simply the above flags byte followed by the packet's payload.
-The two sequence numbers must be inferred and filled in by the receiver's implementation of the protocol.
+The message header is present for the beginning of all messages. The flags byte currently only uses bit 0, which must be set if the message was sent reliably.
+All other bits are currently unused and reserved for future use.
 
-###For Unreliable Transports###
+The reliable message count must begin at 0 for all senders and receivers.
+It must be incremented every time a reliable message is sent.
+It must be present if and only if the transport is unreliable.
+it is used later in this specification to coalesce messages.
 
-There are two variants for unreliable transports:
+###payload###
 
-####If the packet is Sent Unreliably####
+The payload of the packet is a fragment of a message and extends until the maximum MTU.
+The content of this payload is defined by the application and by the message encoding algorithm, which specifies how to turn a message into a stream of bytes.
 
-In this case, the packet must consist of the flags byte, the packet sequence number, the reliable packet sequence number, and the packet's payload.
+###acks###
 
-####If the Packet is Sent Reliably####
+Ack stands for acknowledge.
+Acks must be sent for all reliable packets which arrive with valid checksums.
+They consist of the channel and sequence number for the packet being acknowledged.
+The sender's resending algorithm is implementation-defined.
 
-In this case, the packet must consist of the flags byte, the packet sequence number, the reliable packet sequence number, optionally a CRC32C checksum of the entire packet, and the payload.
+A reliable packet is considered to have arrived in only one of the following two cases:
 
-To compute the checksum of the packet, an implementation must encode the packet, set the checksum field to 0, and compute the CRC32C of the entire packet.
-The checksum must be included if and only if the transport is corruptible; if the transport is incorruptible, a receiver must not expect to receive the checksum.
+- The transport is reliable.
 
-This specification chooses CRC32C because X86 and ARM contain special instructions for its computation.
+- The sender received an ack.
 
-##Sending and Receiving Packets on Message Channels##
+If the transport is reliable, ack sending must not be performed; this floods the network to no gain.
 
-Once again, this section discusses packets in the context of a specific message channel; nothing here is binding on a non-message channel and all packets must be sent inside the wider context of a Fastnet packet.
+##Encoding Messages##
 
-###Sending packets###
+Converting a message to packets for sending occurs in two phases: payload conversion and packet splitting.
 
-Every message channel has a packet sequence number and reliable packet sequence number.
-Furthermore, every packet is either sent reliably or unreliably.
+to convert a message payload for sending, do the first of the following that applies:
 
-To send a packet unreliably, a sender must:
+- If the transport is incorruptible, leave the message's content as-is.
 
-- Pack the packet according to the above section on packet formats.  The sequence number and reliable sequence number are the sequence numbers from the channel's current state.
+- Otherwise, if the message is less than 16 bytes in length and the first bit of the message is different than the last bit of the message, duplicate the message's content.
 
-- Increment the packet sequence number using wrapping arithmetic.
+- Otherwise, if the message is less than 16 bytes in length, append the bitwise not of the message's contents.
 
-- Submit the packet to the transport.
+- Otherwise, append the MD5 checksum of the message's contents.
 
-- Forget the packet exists.
+Then prepare a message header as described above and prepend it to the message.
 
-To send a packet reliably, an implementation must:
+Finally, to send the message, an implementation must split this prepared contents among however many packets must be used to avoid going over the MTU including the headers of said packets, setting flags appropriately and submitting each in turn for sending.
+All other concerns are handled by this lower layer.
 
-- Pack the packet as though it is being sent unreliably.
+##Receiving Messages##
 
-- Increment both the packet sequence number and reliable packet sequence number using wrapping arithmetic.
+There are two variants of message reception, depending on if the transport is reliable or unreliable.
+There is one user-defined setting: the message coalescing duration (MCD).
+The MCD is ignored for reliable transports
 
-- Set the reliability flag.
+Implementations must implement both of the following algorithms:
 
-- Submit the packet to the transport.
+###Receiving Messages on a Reliable Transport###
 
-If the transport is reliable, the sender must forget about packets being sent reliably because the transport will ensure delivery.
-If the transport is not reliable, the sender must hold on to the packet and await an acknowledgement (hereafter ack).
-The resending logic shall now be described.
+This is by far the simplest.  When a packet with the start of message flag is received, begin saving packets until a packet with the end of message flag is received.   Then, decode the payloads into a message.
+Since reliable transports are ordered and incorruptible, no further action is needed; the payload must be submitted directly to the application.
 
-####Acks and Resending####
+###Receiving Messages on Unreliable Transports###
 
-The following section does not apply to reliable transports and must not be implemented for them.
+Packet sequence numbers are related to one another by the comes-before relation.  This relation is defined in [RFC 1982](https://tools.ietf.org/html/rfc1982).
+This relation can become undefined, but only if 2^32-1 packets go missing consecutively.
 
-Channel -5 is the ack channel.
-Packets on the ack channel consist of any number of 6-byte acks packed without padding.
-An individual ack consists of the 2-byte channel identifier and the 4-byte sequence number of the packet being acknowledged.
+In order to receive messages on unreliable transports, implementations must do three things:
 
-When a sender sends a reliable packet, it must hold onto a copy of the packet until such time as the receiver sends an ack on the ack channel which decodes to the packet or the connection is broken.
-Furthermore, the sender must periodically resend the packet on an interval (the resend interval) computed as follows: `(n+0.5)*r` where `n` is the number of the retry attempt and `r` is the estimated round-trip time.
-If resending fails 10 or more times, the implementation is permitted to consider the connection broken.
+- First, tag all packets with the time in which they were received.
 
-###Receiving Packets###
+- Second, place all packets in a container ordered by the comes-before erlation.
 
-Receivers have a value called the ignore number.
-The ignore number's advancement strategy is described in the section on receiving messages.
-The purpose of the ignore number is to provide implementations with a method of ignoring packets which are being resent due to lost acks.
-It also serves to allow messages to be lost completely without causing slowdown.
+- Third, execute the algorithm described here every time a packet with the start of message or end of message flag set is received.
 
-To receive a packet unreliably, a receiver must:
+The rest of this algorithm is defined in terms of the message coalescing group (MCG).  It is computed by applying the following in order:
 
-- Infer a packet sequence number and reliable packet sequence number, if required due to the transport being reliable.
+- The MCG starts by covering the first packet only.
 
-- If the packet's sequence number comes-before the ignore number, ignore the packet.
+- If the first packet has both the start of message and end of message flags set, the MCG is computed; stop.  Otherwise, continue.
 
-- Record the time at which the packet was received with at least millisecond precision.  This is used in later portions of this specification.
+- If the second packet in the container has a different reliability flag than the first, stop.
 
-- Insert the packet into a data structure that orders packets by packet sequence number using the comes-before relationship.
+- Move the MCG's future end forward one packet.
 
-To receive a packet reliably, an implementation must:
+- Continue moving the MCG's future end forward until it encounters the end of the container, a packet with a reliability flag that doesn't match the reliability flag of the first packet in the MCG,  a packet with the start of message flag, or a packet with the end of message flag.
 
-- Infer a packet sequence number and reliable packet sequence number, if required.
+- If the MCG's future end is on a packet with the start of message flag set, move it back one packet.
 
-- If the packet's sequence number comes-before the ignore number, send an ack and otherwise ignore the packet.  We have already received this packet and the ack was lost on the way to the sender.
+If the MCG meets the following conditions, then it is called completed.
 
-- Verify that the packet's checksum matches the packet's contents.  If it doesn't, ignore the packet.
+- The first packet has the start of message flag set.
 
-- Send an ack to the server.
+- The last packet has the end of message flag set.
 
-- Insert the packet into the aforementioned data structure.
+- The sequence numbers of all packets are consecutive.
 
-Updating the reliable packet sequence number is discussed in the message receiving section.
+- Decoding the message header in the first packet and examining the reliable message count reveals that no reliable messages are missing between the last message received and this one (see below).
 
-Note that it is technically possible for the reliability flag to be corrupted.
-if an implementation receives an uncorrupted reliable packet with the same sequence number as an unreliable packet, it must replace the unreliable packet with the reliable one.
-Since unreliable packets are obviously unreliable and since the circumstance in which the packet is corrupted in such a manner as to set the reliability flag and produce a CRC32C checksum that matches the packet is astronomically rare, this specification assumes that the corruption check for reliable packets will weed them out.
-Corrupted reliable packets are handled at a higher level.
+If the MCG is completed, combine the payloads, perform message verification in the straightforward manner (see above about payload preparation), and give the message to the application.
 
-The comes-before relation is defined in [RFC 1982](https://tools.ietf.org/html/rfc1982).
-It is notably undefined if two packets are separated by more than `2^32`.
-In this protocol, this equates to at least 4 GB of consecutively lost data per channel.
-Due to the astronomical rarity of this case, this specification leaves the behavior of this case undefined.
+If the MCG is not completed, compute the MCGLMT (MCG last modified time) as the maximum of the recorded reception times for all packets in the MCG.
+If the MCGLMT is more than MCD seconds ago and the first packet is not reliable, throw out the packets in the MCG.
+otherwise, abort this algorithm and run it again later.
 
-The data structure for packets should provide quick iteration over the contents, as the message receiving algorithm must group packets by looking ahead.
-A tree is acceptible for all defined cases of the comes-before relation, but will crash or produce gibberish (possibly without the ability to recover) in the one undefined case above.
-If an implementation fails to extract a message within a specified time, it is suggested that all unreliable packets be cleared from the container: as described below, reliable packets cannot invoke the undefined case of the comes-before relation unless at least a 4 GB message is sent.
+A reliable message is expected if either:
 
-##Messages##
+- The next message being received is unreliable and it has a different reliable message count than that of the last message we received.
 
-A message refers to the minimal amount of content with meaning on a message channel.
-Messages must have a payload, a reliability flag, and checksum.
-This section describes the encoding and sending of messages.
-
-###Message Encoding and Checksum###
-
-A message's encoding consists of the message's content followed optionally by the checksum.
-
-The checksum must be computed as one of the following cases:
-
-- If the message's content is less than 16 bytes in length and the first and last bit of the messages content are different, , the checksum consists of the message's content repeated twice.
-
-- If the message's content is less than 16 bytes in length and the first and last bit of the message's content are the same, the checksum consists of the message's content with all bits flipped.  Algorithmically, this means notting each byte of the message's content.
-
-- Otherwise, the checksum consists of the md5 of the message's content.
-
-The checksum must not be included if the message is being sent reliably or if the transport is incorruptible.
-In all other cases, the checksum must be included.
-
-###Sending a Message Unreliably###
-
-to send a message unreliably, an implementation must split the message into packets which are no longer than the payload MTU.
-Specifically, this means `payload_mtu-9` byte segments (1 for flags, 4 for the packet sequence number, and 4 for the reliable packet sequence number).
-These packets must then be sent on the specified message channel with consecutive sequence numbers and forgotten.
-Implementations should set the 3-bit message optimization number to a unique value for the entire duration of the message; if an implementation opts not to, it must set the 3-bit message optimization number to zero.
-
-###Sending a Message Reliably###
-
-To send a message reliably, the implementation must split the packet into chunks no longer than the payload MTU.
-For reliable packets, this is `payload_mtu-13` (1 byte for flags, 4 for the packet sequence number, 4 for the reliable packet sequence number, and 4 for the reliable packet checksum).
-These segments must then be sent to the receiver in reliable packets.
-As with unreliable messages, an implementation should set the message optimization number to a unique value for the duration of the message; if it opts not to, the message optimization number must be set to zero.
-
-An implementation shall never send more than one reliable message on a channel at a time.
-If a second reliable message is to be sent on the same channel, the implementation must wait for the previous reliable message to be received and fully acked.
-Failure to do so will cause bugs at best: part of the message receiving algorithm, described below, relies on there being only one reliable message in progress per channel.
-
-###Receiving Messages###
-
-There is an entity called the message coalescing group (MCG).
-There is a time called the message coalescing delay (MCD).
-The MCD must be settable by the user of the implementation with at least millisecond precision and must default to 25 MS.
-Finally, there is a time called the message coalescing group modification time (MCGMT).
-
-The following algorithm must be executed on a per-message-channel basis every time an unreliable or a reliable and uncorrupted packet with the end of message flag is received.
-
-The MCG is conceptually a pair of integers specifying the beginning and end of the range of packets under consideration.
-The beginning of the MCG is always 0.
-The end of the MCG is computed by looking at the container of messages for the channel in question and applying the following refignments.
-The following description is only conseptual.
-An implementation is encouraged to use a more efficient algorithm but must act as if it had implemented the following less efficient one.
-
-To compute the MCG's end:
-
-- Start with all packets in the packet container for the channel in question.
-
-- Move the end of the MCG to the first packet with the end of message flag set, if any.
-
-- if the first packet in the MCG is not the first packet in the MCG with the start of message flag set, move the end of the MCG to the packet immediately before the first packet with the start of message flag set.
-
-- Finally, consider the message optimization numbers.  Move the end of the MCG to the first packet with a different message optimization number than that of the packet at the beginning of the MCG.
-
-The MCGMT must be computed as the maximum of the reception times of the packets in the MCG.
-
-At this point, the MCG consists of all packets which may be in one message.
-The MCG is now in one of three states: aborted, completed, or expired.
-AN implementation must choose the first of the following conditions which applies:
-
-- First, if the first packet of the MCG was sent unreliably and the reliable packet sequence number in the first packet differs from that found in the last reliable packet received on this channle, the MCG is aborted.
-
-- Next, if the first packet in the MCG has the start of message flag set, the last packet in the MCG has the end of message flag set, and the sequence numbers of all packets in the MCG are consecutive, then the MCG is completed.
-
-- Next, if the MCGMT is less than MCD seconds ago or the first packet in the MCG was sent reliably, the MCG is aborted.
-
-- Otherwise, the MCG is expired.
-
-What happens next depends on the state of the MCG.
-
-If the MCG is aborted, this algorithm stops until the next time a packet with the end of message flag set is received.
-
-If the MCG is completed, the message in the MCG is a complete message.
-it shall be extracted and checked for corruption if applicable (the checksum is only sent if the message is being sent unreliably on a corruptible transport; reliable messages and incorruptible transports handle this at a lower level).
-if the message is not corrupted, it must be delivered  to the application immediately.
-
-If the MCG is expired, all packets in the MCG are dropped immediately.
-
-Finally, if the MCG was completed or expired, the ignore number must be set to one more than the packet sequence number of the last packet in the MCG mod  `2^32`.
-
-The reason for the one reliable message at a time constraint mentioned in the message sending section is due to the updating of the ignore number.
-We need a way to ignore duplicate packets or packets that may be being resent due to lost acks from the receiver.
-To this end and described above, we ignore packets which come-before the ignore number by the relation defined in RFC 1982.
-Unfortunately, this means that if we send two reliable messages and the second arrives first, the ignore number will now ignore all packets from the first message.
-This would violate the guarantee of reliability, even though acks were properly received.
-It would also be possible to fix this by adding an additional 4-byte value to the header of the packet, but the point of this library is to optimize for unreliable message sending and multiple streams; applications that need to use one efficient , reliable stream should opt in to TCP.
+- The next message being received is reliable and the reliable message count is not the same as that we would receive by incrementing the currently saved reliable message count of the last received reliable message.
