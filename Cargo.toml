@@ -4,3 +4,5 @@ version = "0.1.0"
 authors = ["Austin Hicks <camlorn@camlorn.net>"]
 
 [dependencies]
+mio = "0.5.0"
+byteorder = "0.5.0"
