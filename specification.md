@@ -219,8 +219,8 @@ Packets:
 ```
 reset_mtu_count = (-3:i16 | -4:i16) 0:u8
 mtu_count_was_reset = (-3:i16 | -4:i16) 1:u8
-mtu_estimate = (-3:i16 | -4:i16) payload:p
-mtu_response = (-3:i16 | -4:i16) count:u32
+mtu_estimate = (-3:i16 | -4:i16) 2:u8 payload:p
+mtu_response = (-3:i16 | -4:i16) 3:u8 count:u32
 ```
 
 We refer to the MTU (maximum transmition unit) as the length of the largest packet that is received by the other end of the connection with enough reliability to be useful.
