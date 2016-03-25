@@ -1,3 +1,5 @@
+extern crate byteorder;
+
 mod packets;
 
 #[test]
