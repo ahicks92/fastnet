@@ -61,10 +61,9 @@ This specification uses a mostly self-explanatory language to specify packet for
 
 - `b` represents a boolean encoded as a `u8`.  0 represents false.  1 represents true.  No other value is allowed.
 
-- `s` represents length-prefixed strings of up to 255 bytes, encoded as UTF8.  The length prefix is 1 byte.  `s` may be followed by a length range in braces, i.e. `s{0, 2}`  The default range is `{1, 255}`.
+- `s` represents null-terminated UTF8 strings.  It may be followed with a length restriction of the form `{min, max}`.  The default length restriction is `{1, INFINITY}`.  Said restrictions are in UTF8 code points.
 
 - `a` is like `s`, but the string must be ascii.
-
 
 - `p` stands for payload, an arbitrary sequence of bytes.  `p` segments will be described further by the specification.  They are usually the last field of a packet.
 
@@ -79,6 +78,11 @@ This specification uses a mostly self-explanatory language to specify packet for
 - `()` is for grouping, as usual.
 
 The rest of this specification demonstrates this language, which is mostly self-explanatory in practice.
+
+It should be noted that the strings can naively be used for DDOS attacks: send the encoder a sufficiently large packet and it will grind to a hault.
+This is not an issue in practice because of two things.
+First, the largest packet Fastnet sends is 500 bytes.  Larger packets are not permitted, so a conforming implementation can assume that any larger packet is invalid.
+Second, extremely large UDP packets are unlikely to arrive at all even assuming they can be sent in the first place.
 
 ##Transports##
 
