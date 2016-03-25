@@ -141,13 +141,13 @@ pub fn encode_packet(packet: &Packet, destination: &mut [u8; MAXIMUM_PACKET_SIZE
         },
         Packet::MTUEstimate{channel: chan, payload: ref p} => {
             writingTo.write_i16::<BigEndian>(chan).unwrap();
-            writingTo.write_u8(3).unwrap();
+            writingTo.write_u8(2).unwrap();
             if writingTo.len() < p.len() {return Err(PacketEncodingError::TooLarge)};
             writingTo.write(p).unwrap();
         },
         Packet::MTUResponse{channel: chan, count: c} => {
             writingTo.write_i16::<BigEndian>(chan);
-            writingTo.write_u8(4).unwrap();
+            writingTo.write_u8(3).unwrap();
             writingTo.write_u32::<BigEndian>(c).unwrap();
         },
     }
