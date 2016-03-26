@@ -35,8 +35,10 @@ pub enum StatusResponse {
 }
 
 pub enum PacketEncodingError {
-    //We need to write over 500 bytes to decode.
+    //Not enough space in the buffer.
     TooLarge,
+    //Data didn't validate.
+    Invalid,
 }
 
 pub enum PacketDecodingError {
@@ -61,95 +63,151 @@ const HEARTBEAT_CHANNEL: i16 = -2;
 const SERVER_MTU_ESTIMATION_CHANNEL: i16 = -3;
 const CLIENT_MTU_ESTIMATION_CHANNEL: i16 = -4;
 
-//Specification mandates that we never send a packet over the maximum size of 500 bytes.
-const MAXIMUM_PACKET_SIZE: usize = 500;
-
-//This function writes over the buffer even if it fails.
-pub fn encode_packet(packet: &Packet, destination: &mut [u8; MAXIMUM_PACKET_SIZE])->Result<usize, PacketEncodingError> {
-    let destinationLen = destination.len();
-    let mut writingTo = &mut destination[..];
+//This overrides the buffer even if it fails.
+pub fn encode_packet(packet: &Packet, destination: &mut [u8])->Result<usize, PacketEncodingError> {
     match *packet {
         Packet::StatusRequest(ref req) => {
-            writingTo.write_i16::<BigEndian>(-1).unwrap();
-            writingTo.write_i16::<BigEndian>(0).unwrap();
-            match *req {
-                StatusRequest::FastnetQuery => {
-                    writingTo.write_u8(0).unwrap();
-                },
-                StatusRequest::VersionQuery => {
-                    writingTo.write_u8(1).unwrap();
-                },
-                StatusRequest::ExtensionQuery(ref name) => {
-                    writingTo.write_u8(2).unwrap();
-                    let nameAsBytes = name.as_bytes();
-                    if nameAsBytes.len() < writingTo.len()-1 {return Err(PacketEncodingError::TooLarge);};
-                    writingTo.write(nameAsBytes).unwrap();
-                },
-            }
+            return encode_status_request(req, destination);
         },
         Packet::StatusResponse(ref resp) => {
-            writingTo.write_i16::<BigEndian>(-1);
-            writingTo.write_u8(1);
-            match* resp {
-                StatusResponse::FastnetResponse(value) => {
-                    writingTo.write_u8(0).unwrap();
-                    writingTo.write_u8(value);
-                },
-                StatusResponse::VersionResponse(ref version) => {
-                    writingTo.write_u8(1);
-                    let versionAsBytes = version.as_bytes();
-                    if writingTo.len() < versionAsBytes.len() {return Err(PacketEncodingError:: TooLarge)};
-                    writingTo.write(versionAsBytes).unwrap();
-                },
-                StatusResponse::ExtensionResponse{name: ref name, supported: supported} => {
-                    writingTo.write_u8(2).unwrap();
-                    let nameAsBytes = name.as_bytes();
-                    //name plus the boolean.
-                    if writingTo.len() < nameAsBytes.len()-1 {return Err(PacketEncodingError::TooLarge)};
-                    writingTo.write(nameAsBytes).unwrap();
-                    writingTo.write_u8(supported);
-                },
-            }
+            return encode_status_response(resp, destination);
         },
         Packet::Connect => {
-            writingTo.write_i16::<BigEndian>(-1);
-            writingTo.write_u8(2);
+            return encode_connect(destination);
         },
         Packet::Connected(id) => {
-            writingTo.write_i16::<BigEndian>(-1);
-            writingTo.write_u8(3);
-            writingTo.write_u32::<BigEndian>(id);
+            return encode_connected(id, destination);
         },
         Packet::Aborted(ref msg) => {
-            writingTo.write_i16::<BigEndian>(-1);
-            writingTo.write_u8(4);
-            let msgAsBytes = msg.as_bytes();
-            if writingTo.len() < msgAsBytes.len() {return Err(PacketEncodingError::TooLarge)};
-            writingTo.write(msgAsBytes).unwrap();
+            return encode_aborted(msg, destination);
         },
         Packet::Heartbeat(value) => {
-            writingTo.write_i16::<BigEndian>(-2);
-            writingTo.write_i16::<BigEndian>(value);
+            return encode_heartbeat(value, destination);
         },
         Packet::ResetMTUCount{channel: chan} => {
-            writingTo.write_i16::<BigEndian>(chan);
-            writingTo.write_u8(0);
+            return encode_reset_mtu_count(chan, destination);
         },
         Packet::MTUCountWasReset{channel: chan} => {
-            writingTo.write_i16::<BigEndian>(chan).unwrap();
-            writingTo.write_u8(1).unwrap();
+            return encode_mtu_count_was_reset(chan, destination);
         },
         Packet::MTUEstimate{channel: chan, payload: ref p} => {
-            writingTo.write_i16::<BigEndian>(chan).unwrap();
-            writingTo.write_u8(2).unwrap();
-            if writingTo.len() < p.len() {return Err(PacketEncodingError::TooLarge)};
-            writingTo.write(p).unwrap();
+            return encode_mtu_estimate(chan, p, destination);
         },
         Packet::MTUResponse{channel: chan, count: c} => {
-            writingTo.write_i16::<BigEndian>(chan);
-            writingTo.write_u8(3).unwrap();
-            writingTo.write_u32::<BigEndian>(c).unwrap();
+            return encode_mtu_response(chan, c, destination);
         },
     }
-    Ok(destinationLen-writingTo.len())
+}
+
+fn encode_status_request(req: &StatusRequest, mut destination: &mut[u8])-> Result<usize, PacketEncodingError> {
+    use self::PacketEncodingError::*;
+    let initial_count = destination.len();
+    try!(destination.write_i16::<BigEndian>(CONNECTION_CHANNEL).or(Err(TooLarge)));
+    match *req {
+        StatusRequest::FastnetQuery => {
+            try!(destination.write_u8(0).or(Err(TooLarge)));
+        },
+        StatusRequest::VersionQuery => {
+            try!(destination.write_u8(1).or(Err(TooLarge)));
+        },
+        StatusRequest::ExtensionQuery(ref name) => {
+            try!(destination.write_u8(2).or(Err(TooLarge)));
+            try!(destination.write_all(name.as_bytes()).or(Err(TooLarge)));
+        },
+    }
+    Ok(initial_count-destination.len())
+}
+
+fn encode_status_response(resp: &StatusResponse, mut destination: &mut[u8])->Result<usize, PacketEncodingError> {
+    use self::PacketEncodingError::*;
+    let initial_count = destination.len();
+    try!(destination.write_i16::<BigEndian>(CONNECTION_CHANNEL).or(Err(TooLarge)));
+    try!(destination.write_u8(1).or(Err(TooLarge)));
+    match* resp {
+        StatusResponse::FastnetResponse(value) => {
+            try!(destination.write_u8(0).or(Err(TooLarge)));
+            try!(destination.write_u8(value).or(Err(TooLarge)));
+        },
+        StatusResponse::VersionResponse(ref version) => {
+            try!(destination.write_u8(1).or(Err(TooLarge)));
+            try!(destination.write_all(b"1.0").or(Err(TooLarge)));
+        },
+        StatusResponse::ExtensionResponse{name: ref name, supported: supported} => {
+            try!(destination.write_u8(2).or(Err(TooLarge)));
+            try!(destination.write(name.as_bytes()).or(Err(TooLarge)));
+            try!(destination.write_u8(supported).or(Err(TooLarge)));
+        },
+    }
+    return Ok(initial_count-destination.len());
+}
+
+fn encode_connect(mut destination: &mut[u8])->Result<usize, PacketEncodingError> {
+    use self::PacketEncodingError::*;
+    let initial_count = destination.len();
+    try!(destination.write_i16::<BigEndian>(CONNECTION_CHANNEL).or(Err(TooLarge)));
+    try!(destination.write_u8(2).or(Err(TooLarge)));
+    Ok(initial_count-destination.len())
+}
+
+fn encode_connected(id: u32, mut destination: &mut[u8])->Result<usize, PacketEncodingError> {
+    use self::PacketEncodingError::*;
+    let initial_count = destination.len();
+    try!(destination.write_i16::<BigEndian>(CONNECTION_CHANNEL).or(Err(TooLarge)));
+    try!(destination.write_u8(3).or(Err(TooLarge)));
+    try!(destination.write_u32::<BigEndian>(id).or(Err(TooLarge)));
+    Ok(initial_count-destination.len())
+}
+
+fn encode_aborted(msg: &String, mut destination: &mut[u8])->Result<usize, PacketEncodingError> {
+    use self::PacketEncodingError::*;
+    let initial_count = destination.len();
+    try!(destination.write_i16::<BigEndian>(CONNECTION_CHANNEL).or(Err(TooLarge)));
+    try!(destination.write_u8(4).or(Err(TooLarge)));
+    try!(destination.write_all(msg.as_bytes()).or(Err(TooLarge)));;
+    Ok(initial_count-destination.len())
+}
+
+fn encode_heartbeat(value: i16, mut destination: &mut[u8])->Result<usize, PacketEncodingError> {
+    use self::PacketEncodingError::*;
+    let initial_count = destination.len();
+    try!(destination.write_i16::<BigEndian>(HEARTBEAT_CHANNEL).or(Err(TooLarge)));
+    try!(destination.write_i16::<BigEndian>(value).or(Err(TooLarge)));
+    Ok(initial_count-destination.len())
+}
+
+fn encode_reset_mtu_count(chan: i16, mut destination: &mut[u8])->Result<usize, PacketEncodingError> {
+    use self::PacketEncodingError::*;
+    if chan != CLIENT_MTU_ESTIMATION_CHANNEL || chan != SERVER_MTU_ESTIMATION_CHANNEL {return Err(Invalid)};
+    let initial_count = destination.len();
+    try!(destination.write_i16::<BigEndian>(chan).or(Err(TooLarge)));
+    try!(destination.write_u8(0).or(Err(TooLarge)));
+    Ok(initial_count-destination.len())
+}
+
+fn encode_mtu_count_was_reset(chan: i16, mut destination: &mut[u8])->Result<usize, PacketEncodingError> {
+    use self::PacketEncodingError::*;
+    if chan != CLIENT_MTU_ESTIMATION_CHANNEL || chan != SERVER_MTU_ESTIMATION_CHANNEL {return Err(Invalid)};
+    let initial_count = destination.len();
+    try!(destination.write_i16::<BigEndian>(chan).or(Err(TooLarge)));
+    try!(destination.write_u8(1).or(Err(TooLarge)));
+    Ok(initial_count-destination.len())
+}
+
+fn encode_mtu_estimate(chan: i16, payload: &[u8], mut destination: &mut[u8])->Result<usize, PacketEncodingError> {
+    use self::PacketEncodingError::*;
+    if chan != CLIENT_MTU_ESTIMATION_CHANNEL || chan != SERVER_MTU_ESTIMATION_CHANNEL {return Err(Invalid)};
+    let initial_count = destination.len();
+    try!(destination.write_i16::<BigEndian>(chan).or(Err(TooLarge)));
+    try!(destination.write_u8(2).or(Err(TooLarge)));
+    try!(destination.write_all(payload).or(Err(TooLarge)));
+    Ok(initial_count-destination.len())
+}
+
+fn encode_mtu_response(chan: i16, count: u32, mut destination: &mut[u8])->Result<usize, PacketEncodingError> {
+    use self::PacketEncodingError::*;
+    let initial_count = destination.len();
+    try!(destination.write_i16::<BigEndian>(chan).or(Err(TooLarge)));
+    try!(destination.write_u8(3).or(Err(TooLarge)));
+    try!(destination.write_u32::<BigEndian>(count).or(Err(TooLarge)));
+    Ok(initial_count-destination.len())
 }
