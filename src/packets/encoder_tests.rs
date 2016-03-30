@@ -1,155 +1,64 @@
 use super::*;
 
-#[test]
-fn test_encode_u8() {
-    let mut array = [0u8; 10];
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        for x in 0u8..10u8 {
-            x.encode(&mut dest).unwrap();
+macro_rules! encoder_test {
+    ($name: ident, $result: expr, $($encodees: expr),* ) => {
+        #[test]
+        fn $name() {
+            let mut array = [0u8;1024];
+            {
+                let mut dest = PacketWriter::new(&mut array);
+                $(($encodees).encode(&mut dest).unwrap();)*
+                assert!(dest.written() == ($result).len());
+            }
+            assert!($result == array[..($result).len()]);
         }
-        assert!(dest.available() == 0); //we should have filled it.
-    }
-    assert!(array == [0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    };
 }
 
-#[test]
-fn test_encode_i8() {
-    let mut array = [0u8; 10];
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        for x in -5i8..5i8 {
-            x.encode(&mut dest).unwrap();
-        }
-        assert!(dest.available() == 0);
-    }
-    //The following literal comes from knowledge of twos complement arithmetic.
-    //namely, if x>0 then -x = (~x)+1
-    assert!(array == [251u8, 252u8, 253u8, 254u8, 255u8, 0u8, 1u8, 2u8, 3u8, 4u8]);
-}
+encoder_test!(test_encode_u8,
+[0u8, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+0u8, 1u8, 2u8, 3u8, 4u8, 5u8, 6u8, 7u8, 8u8, 9u8);
 
-#[test]
-fn test_encode_u16() {
-    let mut array = [0u8; 8]; //encoding 4 u16s.
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        1u16.encode(&mut dest).unwrap();
-        256u16.encode(&mut dest).unwrap();
-        0x1010u16.encode(&mut dest).unwrap();
-        0xffffu16.encode(&mut dest).unwrap();
-        assert!(dest.available() == 0);
-    }
-    assert!(array == [0u8, 1u8, 1u8, 0u8, 0x10u8, 0x10u8, 0xffu8, 0xffu8]);
-}
 
-#[test]
-fn test_encode_i16() {
-    let mut array = [0u8; 8];
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        1i16.encode(&mut dest).unwrap();
-        0x2345i16.encode(&mut dest).unwrap();
-        (-1i16).encode(&mut dest).unwrap();
-        (-2i16).encode(&mut dest).unwrap();
-        assert!(dest.available() == 0);
-    }
-    assert!(array == [0u8, 1, 0x23, 0x45, 0xff, 0xff, 0xff, 0xfe]);
-}
+encoder_test!(test_encode_i8,
+[251u8, 252u8, 253u8, 254u8, 255u8, 0u8, 1u8, 2u8, 3u8, 4u8],
+-5i8, -4i8, -3i8, -2i8, -1i8, 0i8, 1i8, 2i8, 3i8, 4i8);
 
-#[test]
-fn test_encode_u32() {
-    let mut array = [0u8; 8];
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        1u32.encode(&mut dest).unwrap();
-        0x23456789u32.encode(&mut dest).unwrap();
-        assert!(dest.available() == 0);
-    }
-    assert!(array == [0u8, 0, 0, 1,
-    0x23, 0x45, 0x67, 0x89]);
-}
+encoder_test!(test_encode_u16,
+[0u8, 1u8, 1u8, 0u8, 1u8, 1u8, 255u8, 255u8],
+0x0001u16, 0x0100u16, 0x0101u16, 0xffffu16);
 
-#[test]
-fn test_encode_i32() {
-    let mut array = [0u8; 8];
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        0x23456789i32.encode(&mut dest).unwrap();
-        (-2i32).encode(&mut dest).unwrap();
-        assert!(dest.available() == 0);
-    }
-    assert!(array == [0x23u8, 0x45, 0x67, 0x89,
-    0xff, 0xff, 0xff, 0xfe]);
-}
+encoder_test!(test_encode_i16,
+[0u8, 1, 0x23, 0x45, 0xff, 0xfe, 0xff, 0xff],
+1i16, 0x2345i16, -2i16, -1i16);
 
-#[test]
-fn test_encode_str() {
-    let mut array = [0u8; 6];
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        "hello".encode(&mut dest).unwrap();
-        assert!(dest.available() == 0);
-    }
-    assert!(array == [b'h', b'e', b'l', b'l', b'o', 0]);
-}
+encoder_test!(test_encode_u32,
+[0u8, 0, 0, 1, 0x23, 0x45, 0x67, 0x89],
+1u32, 0x23456789u32);
 
-#[test]
-fn test_encode_string() {
-    let mut array = [0u8; 6];
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        "hello".to_string().encode(&mut dest).unwrap();
-        assert!(dest.available() == 0);
-    }
-    assert!(array == [b'h', b'e', b'l', b'l', b'o', 0]);
-}
+encoder_test!(test_encode_i32,
+[0x23u8, 0x45, 0x67, 0x89, 0xff, 0xff, 0xff, 0xff],
+0x23456789i32, -1i32);
 
-#[test]
-fn test_encode_status_request() {
-    use super::StatusRequest::*;
-    let mut     array = [0u8; 500];
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        FastnetQuery.encode(&mut dest).unwrap();
-        assert!(dest.written() == 1);
-    }
-    assert!(array[0] == 0);
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        VersionQuery.encode(&mut dest);
-        assert!(dest.written() == 1);
-    }
-    assert!(array[0] == 1u8);
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        ExtensionQuery("test_atest".to_string()).encode(&mut dest).unwrap();
-        assert!(dest.written() == 12);
-    }
-    assert!(array[..12] == [2u8, b't', b'e', b's', b't', b'_',
-    b'a', b't', b'e', b's', b't', 0]);
-}
+encoder_test!(test_encode_str,
+[b'h', b'e', b'l', b'l', b'o', 0u8],
+"hello");
 
-#[test]
-fn test_encode_status_response() {
-    use super::StatusResponse::*;
-    let mut array = [0u8; 500];
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        FastnetResponse(1).encode(&mut dest).unwrap();
-        assert!(dest.written() == 2)
-    }
-    assert!(array[..2] == [0u8, 1u8]);
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        VersionResponse("1.0".to_string()).encode(&mut dest).unwrap();
-        assert!(dest.written() == 5);
-    }
-    assert!(array[..5] == [1u8, b'1', b'.', b'0', 0]);
-    {
-        let mut dest = PacketWriter::new(&mut array);
-        ExtensionResponse{name: "test_atest".to_string(), supported: 1}.encode(&mut dest).unwrap();
-        assert!(dest.written() == 13);
-    }
-    assert!(array[..13] == [2u8, b't', b'e', b's', b't', b'_',
-    b'a', b't', b'e', b's', b't', 0, 1]);
-}
+encoder_test!(test_encode_string,
+[b'h', b'e', b'l', b'l', b'o', 0u8],
+"hello".to_string());
+
+encoder_test!(test_encode_status_request,
+[0u8, //Fastnet query.
+1, //Version query.
+2, b't', b'e', b's', b't', b'_',
+b'a', b't', b'e', b's', b't', 0], //Extension query.
+StatusRequest::FastnetQuery, StatusRequest::VersionQuery, StatusRequest::ExtensionQuery("test_atest".to_string()));
+
+encoder_test!(test_encode_status_response,
+[0u8, 1, //fastnet response.
+1, b'1', b'.', b'0', 0, //Version.
+2, b't', b'e', b's', b't', b'_',
+b'a', b't', b'e', b's', b't', 0, 1], //Extension "test_atest" is supported.
+StatusResponse::FastnetResponse(1), StatusResponse::VersionResponse("1.0".to_string()),
+StatusResponse::ExtensionResponse{name: "test_atest".to_string(), supported: 1});
