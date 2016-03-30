@@ -150,8 +150,14 @@ impl Encodable for StatusResponse {
     }
 }
 
-//Encoding integer types:
+//Encoding primitive types:
 
+impl Encodable for bool {
+    fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
+        if *self {0u8.encode(destination)}
+        else {1u8.encode(destination)}
+    }
+}
 impl Encodable for i8 {
     fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
         try!(destination.write_i8(*self).or(Err(PacketEncodingError::TooLarge)));
