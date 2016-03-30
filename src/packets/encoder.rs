@@ -55,54 +55,54 @@ impl Encodable for Packet {
         use self::PacketEncodingError::*;
         match *self {
             Packet::StatusRequest(ref req) => {
-                try!(destination.write_i16::<BigEndian>(CONNECTION_CHANNEL).or(Err(TooLarge)));
-                try!(destination.write_u8(0).or(Err(TooLarge)));
+                try!(CONNECTION_CHANNEL.encode(destination));
+                try!(0u8.encode(destination));
                 try!(req.encode(destination));
             },
             Packet::StatusResponse(ref resp) => {
-                try!(destination.write_i16::<BigEndian>(CONNECTION_CHANNEL).or(Err(TooLarge)));
-                try!(destination.write_u8(1).or(Err(TooLarge)));
+                try!(CONNECTION_CHANNEL.encode(destination));
+                try!(1u8.encode(destination));
                 try!(resp.encode(destination));
             },
             Packet::Connect => {
-                try!(destination.write_i16::<BigEndian>(CONNECTION_CHANNEL).or(Err(TooLarge)));
-                try!(destination.write_u8(2).or(Err(TooLarge)));
+                try!(CONNECTION_CHANNEL.encode(destination));
+                try!(2u8.encode(destination));
             },
             Packet::Connected(id) => {
-                try!(destination.write_i16::<BigEndian>(CONNECTION_CHANNEL).or(Err(TooLarge)));
-                try!(destination.write_u8(3).or(Err(TooLarge)));
-                try!(destination.write_u32::<BigEndian>(id).or(Err(TooLarge)));
+                try!(CONNECTION_CHANNEL.encode(destination));
+                try!(3u8.encode(destination));
+                try!(id.encode(destination));
             },
             Packet::Aborted(ref msg) => {
-                try!(destination.write_i16::<BigEndian>(CONNECTION_CHANNEL).or(Err(TooLarge)));
-                try!(destination.write_u8(4).or(Err(TooLarge)));
-                try!(destination.write_all(msg.as_bytes()).or(Err(TooLarge)));
+                try!(CONNECTION_CHANNEL.encode(destination));
+                try!(4.encode(destination));
+                try!(msg.encode(destination));
             },
             Packet::Heartbeat(value) => {
-                try!(destination.write_i16::<BigEndian>(HEARTBEAT_CHANNEL).or(Err(TooLarge)));
-                try!(destination.write_i16::<BigEndian>(value).or(Err(TooLarge)));
+                try!(HEARTBEAT_CHANNEL.encode(destination));
+                try!(value.encode(destination));
             },
             Packet::ResetMTUCount{channel: chan} => {
                 if chan != MTU_CLIENT_ESTIMATION_CHANNEL || chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
-                try!(destination.write_i16::<BigEndian>(chan).or(Err(TooLarge)));
-                try!(destination.write_u8(0).or(Err(TooLarge)));
+                try!(chan.encode(destination));
+                try!(0u8.encode(destination));
             },
             Packet::MTUCountWasReset{channel: chan} => {
                 if chan != MTU_CLIENT_ESTIMATION_CHANNEL || chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
-                try!(destination.write_i16::<BigEndian>(chan).or(Err(TooLarge)));
-                try!(destination.write_u8(1).or(Err(TooLarge)));
+                try!(chan.encode(destination));
+                try!(1u8.encode(destination));
             },
             Packet::MTUEstimate{channel: chan, payload: ref p} => {
                 if chan != MTU_CLIENT_ESTIMATION_CHANNEL || chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
-                try!(destination.write_i16::<BigEndian>(chan).or(Err(TooLarge)));
-                try!(destination.write_u8(2).or(Err(TooLarge)));
+                try!(chan.encode(destination));
+                try!(2u8.encode(destination));
                 try!(destination.write_all(p).or(Err(TooLarge)));
             },
             Packet::MTUResponse{channel: chan, count: c} => {
                 if chan != MTU_CLIENT_ESTIMATION_CHANNEL || chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
-                try!(destination.write_i16::<BigEndian>(chan).or(Err(TooLarge)));
-                try!(destination.write_u8(3).or(Err(TooLarge)));
-                try!(destination.write_u32::<BigEndian>(c).or(Err(TooLarge)));
+                try!(chan.encode(destination));
+                try!(3u8.encode(destination));
+                try!(c.encode(destination));
             },
         }
     Ok(())
@@ -114,14 +114,14 @@ impl Encodable for StatusRequest {
         use self::PacketEncodingError::*;
         match *self {
             StatusRequest::FastnetQuery => {
-                try!(destination.write_u8(0).or(Err(TooLarge)));
+                try!(0u8.encode(destination));
             },
             StatusRequest::VersionQuery => {
-                try!(destination.write_u8(1).or(Err(TooLarge)));
+                try!(1u8.encode(destination));
             },
             StatusRequest::ExtensionQuery(ref name) => {
-                try!(destination.write_u8(2).or(Err(TooLarge)));
-                try!(destination.write_all(name.as_bytes()).or(Err(TooLarge)));
+                try!(2u8.encode(destination));
+                try!(name.encode(destination));
             },
         }
         Ok(())
@@ -133,17 +133,17 @@ impl Encodable for StatusResponse {
         use self::PacketEncodingError::*;
         match *self {
             StatusResponse::FastnetResponse(value) => {
-                try!(destination.write_u8(0).or(Err(TooLarge)));
-                try!(destination.write_u8(value).or(Err(TooLarge)));
+                try!(0u8.encode(destination));
+                try!(value.encode(destination));
             },
             StatusResponse::VersionResponse(ref version) => {
-                try!(destination.write_u8(1).or(Err(TooLarge)));
-                try!(destination.write_all(version.as_bytes()).or(Err(TooLarge)));
+                try!(1u8.encode(destination));
+                try!(version.encode(destination));
             },
             StatusResponse::ExtensionResponse{ref name, supported} => {
-                try!(destination.write_u8(2).or(Err(TooLarge)));
-                try!(destination.write(name.as_bytes()).or(Err(TooLarge)));
-                try!(destination.write_u8(supported).or(Err(TooLarge)));
+                try!(2u8.encode(destination));
+                try!(name.encode(destination));
+                try!(supported.encode(destination));
             },
         }
         Ok(())
