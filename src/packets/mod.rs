@@ -10,8 +10,8 @@ pub enum Packet {
 
     //Connection handshake (also channel -1).
     Connect,
-    Aborted(String),
     Connected(u32),
+    Aborted(String),
     
     //Heartbeat (channel -2).
     Heartbeat(i16),

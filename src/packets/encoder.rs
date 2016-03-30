@@ -75,7 +75,7 @@ impl Encodable for Packet {
             },
             Packet::Aborted(ref msg) => {
                 try!(CONNECTION_CHANNEL.encode(destination));
-                try!(4.encode(destination));
+                try!(4u8.encode(destination));
                 try!(msg.encode(destination));
             },
             Packet::Heartbeat(value) => {
@@ -83,23 +83,23 @@ impl Encodable for Packet {
                 try!(value.encode(destination));
             },
             Packet::ResetMTUCount{channel: chan} => {
-                if chan != MTU_CLIENT_ESTIMATION_CHANNEL || chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
+                if chan != MTU_CLIENT_ESTIMATION_CHANNEL && chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
                 try!(chan.encode(destination));
                 try!(0u8.encode(destination));
             },
             Packet::MTUCountWasReset{channel: chan} => {
-                if chan != MTU_CLIENT_ESTIMATION_CHANNEL || chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
+                if chan != MTU_CLIENT_ESTIMATION_CHANNEL && chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
                 try!(chan.encode(destination));
                 try!(1u8.encode(destination));
             },
             Packet::MTUEstimate{channel: chan, payload: ref p} => {
-                if chan != MTU_CLIENT_ESTIMATION_CHANNEL || chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
+                if chan != MTU_CLIENT_ESTIMATION_CHANNEL && chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
                 try!(chan.encode(destination));
                 try!(2u8.encode(destination));
-                try!(destination.write_all(p).or(Err(TooLarge)));
+                try!(p[..].encode(destination));
             },
             Packet::MTUResponse{channel: chan, count: c} => {
-                if chan != MTU_CLIENT_ESTIMATION_CHANNEL || chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
+                if chan != MTU_CLIENT_ESTIMATION_CHANNEL && chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
                 try!(chan.encode(destination));
                 try!(3u8.encode(destination));
                 try!(c.encode(destination));

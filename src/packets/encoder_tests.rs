@@ -10,7 +10,7 @@ macro_rules! encoder_test {
                 $(($encodees).encode(&mut dest).unwrap();)*
                 assert!(dest.written() == ($result).len());
             }
-            assert!($result == array[..($result).len()]);
+            assert!($result[..] == array[..($result).len()]);
         }
     };
 }
@@ -62,3 +62,46 @@ encoder_test!(test_encode_status_response,
 b'a', b't', b'e', b's', b't', 0, 1], //Extension "test_atest" is supported.
 StatusResponse::FastnetResponse(1), StatusResponse::VersionResponse("1.0".to_string()),
 StatusResponse::ExtensionResponse{name: "test_atest".to_string(), supported: true});
+
+//We assume that primitive types are tested sufficiently by the above.
+//So test one variant each of the Packet enum, using the simplest inner representations we can for testing.
+
+encoder_test!(test_encode_status_request_packet,
+[255u8, 255, 0, 0], //status request of type fastnet query.
+Packet::StatusRequest(StatusRequest::FastnetQuery));
+
+encoder_test!(test_encode_status_response_packet,
+[255, 255, 1, 0, 1], //Fastnet is listening.
+Packet::StatusResponse(StatusResponse::FastnetResponse(1)));
+
+encoder_test!(test_encode_connect_packet,
+[255, 255, 2], //Request for connection.
+Packet::Connect);
+
+encoder_test!(test_encode_connected_packet,
+[255, 255, 3, 0, 0, 0, 5], //Connected, id is 5.
+Packet::Connected(5));
+
+encoder_test!(test_encode_aborted_packet,
+[255, 255, 4, b'f', b'a', b'i', b'l', 0], //aborted with message "fail".
+Packet::Aborted("fail".to_string()));
+
+encoder_test!(test_encode_heartbeat_packet,
+[255, 254, 0, 5], //Heartbeat, value 5.
+Packet::Heartbeat(5));
+
+encoder_test!(test_reset_mtu_count_packet,
+[255, 253, 0], //Reset mtu count.
+Packet::ResetMTUCount{channel: -3});
+
+encoder_test!(test_encode_mtu_was_reset_packet,
+[255, 253, 1], //MTU count was reset.
+Packet::MTUCountWasReset{channel: -3});
+
+encoder_test!(test_encode_mut_estimate_packet,
+[255, 253, 2, 0, 1, 2, 3], //Estimate, payload is 0, 1, 2, 3.
+Packet::MTUEstimate{channel: -3, payload: vec![0, 1, 2, 3]});
+
+encoder_test!(test_encode_mtu_response_packet,
+[255, 253, 3, 0, 0, 0, 5], //MTU estimate response, count is 5.
+Packet::MTUResponse{channel: -3, count: 5});
