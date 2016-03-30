@@ -200,7 +200,7 @@ impl Encodable for u32 {
 fn encode_string_slice(data: &[u8], destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
     use self::PacketEncodingError::*;
     if data.iter().any(|&x| x == 0) {return Err(Invalid)};
-    try!(destination.write_all(data).or(Err(TooLarge)));
+    try!(data.encode(destination));
     try!(0u8.encode(destination));
     Ok(())
 }
@@ -217,3 +217,13 @@ impl Encodable for String {
     }
 }
 
+//We can write an impl for slices of encodable things, if we want.
+
+impl<T> Encodable for [T] where T: Encodable {
+    fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
+        for i in self {
+            try!(i.encode(destination));
+        }
+        Ok(())
+    }
+}
