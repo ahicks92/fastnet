@@ -1,6 +1,7 @@
 pub use self::encoder::*;
 
 mod encoder;
+mod encoder_tests;
 
 pub enum Packet {
     //Status request and response (channel -1)
