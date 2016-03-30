@@ -154,8 +154,8 @@ impl Encodable for StatusResponse {
 
 impl Encodable for bool {
     fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
-        if *self {0u8.encode(destination)}
-        else {1u8.encode(destination)}
+        if *self {1u8.encode(destination)}
+        else {0u8.encode(destination)}
     }
 }
 impl Encodable for i8 {

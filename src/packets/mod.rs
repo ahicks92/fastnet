@@ -33,7 +33,7 @@ pub enum StatusRequest {
 pub enum StatusResponse {
     FastnetResponse(u8),
     VersionResponse(String),
-    ExtensionResponse {name: String, supported: u8},
+    ExtensionResponse {name: String, supported: bool},
 }
 
 //These are the channel constants.

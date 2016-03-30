@@ -61,4 +61,4 @@ encoder_test!(test_encode_status_response,
 2, b't', b'e', b's', b't', b'_',
 b'a', b't', b'e', b's', b't', 0, 1], //Extension "test_atest" is supported.
 StatusResponse::FastnetResponse(1), StatusResponse::VersionResponse("1.0".to_string()),
-StatusResponse::ExtensionResponse{name: "test_atest".to_string(), supported: 1});
+StatusResponse::ExtensionResponse{name: "test_atest".to_string(), supported: true});
