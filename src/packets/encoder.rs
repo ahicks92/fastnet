@@ -56,26 +56,26 @@ impl Encodable for Packet {
         match *self {
             Packet::StatusRequest(ref req) => {
                 try!(CONNECTION_CHANNEL.encode(destination));
-                try!(0u8.encode(destination));
+                try!(STATUS_REQUEST_SPECIFIER.encode(destination));
                 try!(req.encode(destination));
             },
             Packet::StatusResponse(ref resp) => {
                 try!(CONNECTION_CHANNEL.encode(destination));
-                try!(1u8.encode(destination));
+                try!(STATUS_RESPONSE_SPECIFIER.encode(destination));
                 try!(resp.encode(destination));
             },
             Packet::Connect => {
                 try!(CONNECTION_CHANNEL.encode(destination));
-                try!(2u8.encode(destination));
+                try!(CONNECT_SPECIFIER.encode(destination));
             },
             Packet::Connected(id) => {
                 try!(CONNECTION_CHANNEL.encode(destination));
-                try!(3u8.encode(destination));
+                try!(CONNECTED_SPECIFIER.encode(destination));
                 try!(id.encode(destination));
             },
             Packet::Aborted(ref msg) => {
                 try!(CONNECTION_CHANNEL.encode(destination));
-                try!(4u8.encode(destination));
+                try!(ABORTED_SPECIFIER.encode(destination));
                 try!(msg.encode(destination));
             },
             Packet::Heartbeat{counter, sent, received} => {
@@ -98,13 +98,13 @@ impl Encodable for StatusRequest {
         use self::PacketEncodingError::*;
         match *self {
             StatusRequest::FastnetQuery => {
-                try!(0u8.encode(destination));
+                try!(STATUS_FASTNET_SPECIFIER.encode(destination));
             },
             StatusRequest::VersionQuery => {
-                try!(1u8.encode(destination));
+                try!(STATUS_VERSION_SPECIFIER.encode(destination));
             },
             StatusRequest::ExtensionQuery(ref name) => {
-                try!(2u8.encode(destination));
+                try!(STATUS_EXTENSION_SPECIFIER.encode(destination));
                 try!(name.encode(destination));
             },
         }
@@ -117,15 +117,15 @@ impl Encodable for StatusResponse {
         use self::PacketEncodingError::*;
         match *self {
             StatusResponse::FastnetResponse(value) => {
-                try!(0u8.encode(destination));
+                try!(STATUS_FASTNET_SPECIFIER.encode(destination));
                 try!(value.encode(destination));
             },
             StatusResponse::VersionResponse(ref version) => {
-                try!(1u8.encode(destination));
+                try!(STATUS_VERSION_SPECIFIER.encode(destination));
                 try!(version.encode(destination));
             },
             StatusResponse::ExtensionResponse{ref name, supported} => {
-                try!(2u8.encode(destination));
+                try!(STATUS_EXTENSION_SPECIFIER.encode(destination));
                 try!(name.encode(destination));
                 try!(supported.encode(destination));
             },
