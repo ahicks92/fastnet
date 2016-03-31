@@ -14,14 +14,9 @@ pub enum Packet {
     Aborted(String),
     
     //Heartbeat (channel -2).
-    Heartbeat(i16),
-    
-    //MTU estimation (-3 and -4)
-    //These have to record the channel.
-    ResetMTUCount {channel: i16},
-    MTUCountWasReset {channel: i16},
-    MTUEstimate {channel: i16, payload: Vec<u8>},
-    MTUResponse {channel: i16, count: u32},
+    Heartbeat{counter: u32, sent: u64, received: u64},
+
+    Echo(i16),
 }
 
 pub enum StatusRequest {
@@ -36,15 +31,7 @@ pub enum StatusResponse {
     ExtensionResponse {name: String, supported: bool},
 }
 
-//These are the channel constants.
 
-//Status query and connection handshake channel.
 pub const CONNECTION_CHANNEL: i16 = -1;
-
-//Heartbeat channel.
 pub const HEARTBEAT_CHANNEL: i16 = -2;
-
-//Client and server MTU channels.
-//These are named for the entity executing the MTU estimation algorithm, not for the entity receiving.
-pub const MTU_SERVER_ESTIMATION_CHANNEL: i16 = -3;
-pub const MTU_CLIENT_ESTIMATION_CHANNEL: i16 = -4;
+pub const ECHO_CHANNEL: i16 = -3;

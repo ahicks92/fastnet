@@ -78,31 +78,15 @@ impl Encodable for Packet {
                 try!(4u8.encode(destination));
                 try!(msg.encode(destination));
             },
-            Packet::Heartbeat(value) => {
+            Packet::Heartbeat{counter, sent, received} => {
                 try!(HEARTBEAT_CHANNEL.encode(destination));
+                try!(counter.encode(destination));
+                try!(sent.encode(destination));
+                try!(received.encode(destination));
+            },
+            Packet::Echo(value) => {
+                try!(ECHO_CHANNEL.encode(destination));
                 try!(value.encode(destination));
-            },
-            Packet::ResetMTUCount{channel: chan} => {
-                if chan != MTU_CLIENT_ESTIMATION_CHANNEL && chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
-                try!(chan.encode(destination));
-                try!(0u8.encode(destination));
-            },
-            Packet::MTUCountWasReset{channel: chan} => {
-                if chan != MTU_CLIENT_ESTIMATION_CHANNEL && chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
-                try!(chan.encode(destination));
-                try!(1u8.encode(destination));
-            },
-            Packet::MTUEstimate{channel: chan, payload: ref p} => {
-                if chan != MTU_CLIENT_ESTIMATION_CHANNEL && chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
-                try!(chan.encode(destination));
-                try!(2u8.encode(destination));
-                try!(p[..].encode(destination));
-            },
-            Packet::MTUResponse{channel: chan, count: c} => {
-                if chan != MTU_CLIENT_ESTIMATION_CHANNEL && chan != MTU_SERVER_ESTIMATION_CHANNEL {return Err(Invalid)};
-                try!(chan.encode(destination));
-                try!(3u8.encode(destination));
-                try!(c.encode(destination));
             },
         }
     Ok(())
@@ -200,13 +184,27 @@ impl Encodable for u32 {
     }
 }
 
+impl Encodable for i64 {
+    fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
+        try!(destination.write_i64::<BigEndian>(*self).or(Err(PacketEncodingError::TooLarge)));
+        Ok(())
+    }
+}
+
+impl Encodable for u64 {
+    fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
+        try!(destination.write_u64::<BigEndian>(*self).or(Err(PacketEncodingError::TooLarge)));
+        Ok(())
+    }
+}
+
 //These are the two string types.
 //The Fastnet spec requires null-termination.  Rust strings are not null terminated.
 
 fn encode_string_slice(data: &[u8], destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
     use self::PacketEncodingError::*;
     if data.iter().any(|&x| x == 0) {return Err(Invalid)};
-    try!(data.encode(destination));
+    try!(destination.write_all(data).or(Err(TooLarge)));
     try!(0u8.encode(destination));
     Ok(())
 }
@@ -220,16 +218,5 @@ impl Encodable for str {
 impl Encodable for String {
     fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
         encode_string_slice(self.as_bytes(), destination)
-    }
-}
-
-//We can write an impl for slices of encodable things, if we want.
-
-impl<T> Encodable for [T] where T: Encodable {
-    fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
-        for i in self {
-            try!(i.encode(destination));
-        }
-        Ok(())
     }
 }

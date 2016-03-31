@@ -40,6 +40,16 @@ encoder_test!(test_encode_i32,
 [0x23u8, 0x45, 0x67, 0x89, 0xff, 0xff, 0xff, 0xff],
 0x23456789i32, -1i32);
 
+encoder_test!(test_encode_u64,
+[0u8, 0, 0, 0, 0, 0, 0, 5,
+0x12, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0],
+5u64, 0x123456789abcdef0u64);
+
+encoder_test!(test_encode_i64,
+[0u8, 0, 0, 0, 0, 0, 0, 5,
+0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe],
+5i64, -2i64);
+
 encoder_test!(test_encode_str,
 [b'h', b'e', b'l', b'l', b'o', 0u8],
 "hello");
@@ -87,21 +97,9 @@ encoder_test!(test_encode_aborted_packet,
 Packet::Aborted("fail".to_string()));
 
 encoder_test!(test_encode_heartbeat_packet,
-[255, 254, 0, 5], //Heartbeat, value 5.
-Packet::Heartbeat(5));
+[255, 254, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 15],
+Packet::Heartbeat{counter: 5, sent: 10, received: 15});
 
-encoder_test!(test_reset_mtu_count_packet,
-[255, 253, 0], //Reset mtu count.
-Packet::ResetMTUCount{channel: -3});
-
-encoder_test!(test_encode_mtu_was_reset_packet,
-[255, 253, 1], //MTU count was reset.
-Packet::MTUCountWasReset{channel: -3});
-
-encoder_test!(test_encode_mut_estimate_packet,
-[255, 253, 2, 0, 1, 2, 3], //Estimate, payload is 0, 1, 2, 3.
-Packet::MTUEstimate{channel: -3, payload: vec![0, 1, 2, 3]});
-
-encoder_test!(test_encode_mtu_response_packet,
-[255, 253, 3, 0, 0, 0, 5], //MTU estimate response, count is 5.
-Packet::MTUResponse{channel: -3, count: 5});
+encoder_test!(test_encode_echo_packet,
+[255u8, 253, 0, 5],
+Packet::Echo(5));
