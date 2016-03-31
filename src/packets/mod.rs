@@ -1,8 +1,12 @@
 pub use self::encoder::*;
+pub use self::decoder::*;
 
 mod encoder;
 mod encoder_tests;
+mod decoder;
+mod decoder_tests;
 
+#[derive(Debug)]
 pub enum Packet {
     //Status request and response (channel -1)
     StatusRequest(StatusRequest),
@@ -19,12 +23,14 @@ pub enum Packet {
     Echo(i16),
 }
 
+#[derive(Debug)]
 pub enum StatusRequest {
     FastnetQuery,
     VersionQuery,
     ExtensionQuery(String),
 }
 
+#[derive(Debug)]
 pub enum StatusResponse {
     FastnetResponse(u8),
     VersionResponse(String),
