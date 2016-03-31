@@ -182,73 +182,38 @@ Both clients and servers must expose the Fastnet connection ID for a connection 
 
 Servers must ignore any packets not involved in an active connection.
 
-##The Heartbeat Channel, Connection Breaking, and Round-trip Estimation##
+##The Heartbeat Channel and Connection Breaking##
 
 Packet format:
 
 ```
-heartbeat = -2:i16 payload:i16
+heartbeat = -2:i16 counter: u32 sent_packets: u64 received_packets: u64
 ```
 
 Channel -2 must be the heartbeat channel.
 
-If a client receives a positive integer on the heartbeat channel, it is to immediately echo it back to the server.
-If a server receives a negative integer on the heartbeat channel, it is to immediately echo it back to the client.
-In all other cases, the client and/or server must do nothing and ignore the packet.
+A heartbeat is composed of three pieces of information:
 
-Connections must be considered broken in one of two cases:
+- A wrapping 32-bit counter, specifying how many times the sender has sent the heartbeat.
 
-- If the transport reports that the connection is broken for any reason, i.e. TCP closed or the operating system lost the network.
+- A 64-bit integer specifying how many packets this end of the connection has sent.
 
-- If one end of the connection does not receive a heartbeat within a user-specified timeout whose default value must be 20 seconds and whose minimum must be no less than 1 second.  For this purpose, implementations must consider both echoed heartbeats and sent heartbeats to be equivalent.
+- A 64-bit integer specifying how many packets this end of the connection has received from the other end of the connection.
 
-Both the client and the server must report broken connections to the application without delay.
-Servers must also begin behaving as though the client had not connected in the first place; all packets save connection requests and queries must be ignored.
+Both parties involved in a Fastnet connection must send a heartbeat every 100 MS.
 
-The implementation must send heartbeats to the other end of the connection with an interval no greater than 500 MS.
-The implementation must always respond to heartbeats instantly.
+A connection is considered disconnected if a heartbeat does not arrive for a user-specified timeout.  The default for this timeout shall be 1 second.
 
-Implementations are required to provide packet round-trip estimation without violating this specification or using extra channels for their protocol implementations.
-The default round-trip time must be 200 MS.
-The most basic conforming algorithm for packet estimation is to use this default, but it is suggested that implementations take advantage of the heartbeat channel to perform a smarter estimate.
+##The Echo Channel##
 
-##Determining Payload MTU##
-
-Packets:
+Packet format:
 
 ```
-reset_mtu_count = (-3:i16 | -4:i16) 0:u8
-mtu_count_was_reset = (-3:i16 | -4:i16) 1:u8
-mtu_estimate = (-3:i16 | -4:i16) 2:u8 payload:p
-mtu_response = (-3:i16 | -4:i16) 3:u8 count:u32
+echo = -3: i16 payload: i16
 ```
 
-We refer to the MTU (maximum transmition unit) as the length of the largest packet that is received by the other end of the connection with enough reliability to be useful.
-Maximizing the MTU is important to avoid excessive fragmentation.
-Regardless of the determined MTU, either end of the connection must be prepared for packets of up to 500 bytes.
-The default and minimum MTU is 32.
+When an implementation receives a packet on the echo channel for a connected Fastnet peer, it must immediately resend (echo) the packet back to the sender without modification.
 
-Channels -3 and -4 are the server MTU and client MTU estimation channels respectively.
-We refer to them as the estimator and the responder, and to the channel of the estimator as the channel.
-Both the client and the server must be capable of playing both roles simultaneously.
-The server is the estimator on channel -3.  The client is the estimator on channel -4.
+Clients shall always use negative integers for their payload.  Servers  shall always use positive integers for their payload.
 
-The responder is simplest.
-When the responder sees the reset_mtu_count packet, it must reset an internal counter to 0 and send the mtu_count_was_reset packet.
-When it sees the mtu_estimate packet, it must increment the internal counter and respond with the mtu_response packet, encoding the count.
-
-This specification leaves the algorithm of the estimator unspecified for now, as implementation experience is required to properly design it.
-The minimum conforming algorithm is to use the default MTU of 32.
-This specification mandates the  following only:
-
-- The default and minimum MTU is 32.
-
-- The client and server must perform MTU estimation immediately upon the establishment of the connection.
-
-It is strongly recommended that the MTU estimation algorithms be re-executed periodically.
-
-Note that the payload of the mtu_estimate packet is arbitrary.  It should be set to random bytes and is used to estimate the largest packet that arrives somewhat reliably at the other end of connections.
-A basic MTU estimation algorithm is to send `n` packets of some fixed size, wait a while, and see what the largest received count was.
-Pseudocode will be added to this section when an algorithm proves itself.
-
-The rest of this specification is pending and cannot be written without an implementation to play with.
+This channnel exists for implementations wishing to attempt provision of round-trip estimation.  A conforming implementation must implement the echo channel but is not required to provide a round-trip estimation algorithm.
