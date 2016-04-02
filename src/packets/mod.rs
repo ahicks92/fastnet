@@ -32,7 +32,7 @@ pub enum StatusRequest {
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum StatusResponse {
-    FastnetResponse(u8),
+    FastnetResponse(bool),
     VersionResponse(String),
     ExtensionResponse {name: String, supported: bool},
 }

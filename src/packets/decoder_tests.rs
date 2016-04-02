@@ -81,3 +81,15 @@ StatusRequest::VersionQuery);
 decoder_test!(test_decode_extension_query, StatusRequest,
 [2u8, b't', b'e', b's', b't', b'_', b'a', b't', b'e', b's', b't', 0],
 StatusRequest::ExtensionQuery("test_atest".to_string()));
+
+decoder_test!(test_decode_fastnet_response, StatusResponse,
+[0u8, 1u8],
+StatusResponse::FastnetResponse(true));
+
+decoder_test!(test_decode_version_response, StatusResponse,
+[1u8, b'1', b'.', b'0', 0],
+StatusResponse::VersionResponse("1.0".to_string()));
+
+decoder_test!(test_decode_extension_response, StatusResponse,
+[2u8, b't', b'e', b's', b't', b'_', b'a', b't', b'e', b's', b't', 0, 1],
+StatusResponse::ExtensionResponse{name: "test_atest".to_string(), supported: true});

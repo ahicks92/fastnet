@@ -70,7 +70,7 @@ encoder_test!(test_encode_status_response,
 1, b'1', b'.', b'0', 0, //Version.
 2, b't', b'e', b's', b't', b'_',
 b'a', b't', b'e', b's', b't', 0, 1], //Extension "test_atest" is supported.
-StatusResponse::FastnetResponse(1), StatusResponse::VersionResponse("1.0".to_string()),
+StatusResponse::FastnetResponse(true), StatusResponse::VersionResponse("1.0".to_string()),
 StatusResponse::ExtensionResponse{name: "test_atest".to_string(), supported: true});
 
 //We assume that primitive types are tested sufficiently by the above.
@@ -82,7 +82,7 @@ Packet::StatusRequest(StatusRequest::FastnetQuery));
 
 encoder_test!(test_encode_status_response_packet,
 [255, 255, 1, 0, 1], //Fastnet is listening.
-Packet::StatusResponse(StatusResponse::FastnetResponse(1)));
+Packet::StatusResponse(StatusResponse::FastnetResponse(true)));
 
 encoder_test!(test_encode_connect_packet,
 [255, 255, 2], //Request for connection.
