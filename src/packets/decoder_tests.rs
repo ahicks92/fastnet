@@ -55,3 +55,7 @@ decoder_test!(test_decode_i64_negative, i64,
 decoder_test!(test_decode_u64, u64,
 [0x12u8, 0x34, 0x56, 0x78, 0x9a, 0xbc, 0xde, 0xf0],
 0x123456789abcdef0u64);
+
+decoder_test!(test_decode_string, String,
+[b'a', b' ', b't', b'e', b's', b't', 0],
+"a test".to_string());

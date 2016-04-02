@@ -100,3 +100,25 @@ impl Decodable for u64 {
         Ok(try!(source.read_u64::<BigEndian>().or(Err(PacketDecodingError::TooSmall))))
     }
 }
+
+impl Decodable for String {
+    type Output = String;
+    fn decode(source: &mut PacketReader)->Result<Self::Output, PacketDecodingError> {
+        let data = &source.slice[source.index..];
+        let mut index_of_null: Option<usize>  = None;
+        for i in 0..data.len() {
+            if data[i] == 0 {
+                index_of_null = Some(i);
+                break;
+            }
+        }
+        if let Some(extracted_index) = index_of_null {
+            let string_slice = &data[..extracted_index];
+            source.index += extracted_index+1; //advance it.
+            return String::from_utf8(string_slice.to_vec()).or(Err(PacketDecodingError::Invalid));
+        }
+        else {
+            return Err(PacketDecodingError::Invalid);
+        }
+    }
+}
