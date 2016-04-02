@@ -59,3 +59,17 @@ decoder_test!(test_decode_u64, u64,
 decoder_test!(test_decode_string, String,
 [b'a', b' ', b't', b'e', b's', b't', 0],
 "a test".to_string());
+
+//Fastnet specific types:
+
+decoder_test!(test_decode_fastnet_query, StatusRequest,
+[0u8],
+StatusRequest::FastnetQuery);
+
+decoder_test!(test_decode_version_query, StatusRequest,
+[1u8],
+StatusRequest::VersionQuery);
+
+decoder_test!(test_decode_extension_query, StatusRequest,
+[2u8, b't', b'e', b's', b't', b'_', b'a', b't', b'e', b's', b't', 0],
+StatusRequest::ExtensionQuery("test_atest".to_string()));

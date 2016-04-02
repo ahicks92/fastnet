@@ -45,6 +45,24 @@ pub trait Decodable {
     fn decode(source: &mut PacketReader)->Result<Self::Output, PacketDecodingError>;
 }
 
+impl Decodable for StatusRequest {
+    type Output = StatusRequest;
+    fn decode(source: &mut PacketReader)->Result<Self::Output, PacketDecodingError> {
+        use self::PacketDecodingError::*;
+        use super::StatusRequest::*;
+        let code = try!(source.read_u8().or(Err(TooSmall)));
+        match code {
+            STATUS_FASTNET_SPECIFIER => {return Ok(FastnetQuery);},
+            STATUS_VERSION_SPECIFIER => {return Ok(VersionQuery);},
+            STATUS_EXTENSION_SPECIFIER => {
+                let extension_name = try!(String::decode(source));
+                return Ok(ExtensionQuery(extension_name));
+            },
+            _ => {return Err(Invalid);},
+        }
+    }
+}
+
 impl Decodable for i8 {
     type Output = i8;
     fn decode(source: &mut PacketReader)->Result<Self::Output, PacketDecodingError> {
