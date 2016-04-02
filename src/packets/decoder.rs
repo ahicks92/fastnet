@@ -45,6 +45,39 @@ pub trait Decodable {
     fn decode(source: &mut PacketReader)->Result<Self::Output, PacketDecodingError>;
 }
 
+impl Decodable for Packet {
+    type Output = Packet;
+    fn decode(source: &mut PacketReader)->Result<Packet, PacketDecodingError> {
+        use super::Packet::*;
+        use self::PacketDecodingError::*;
+        let channel = try!(i16::decode(source));
+        match channel {
+            CONNECTION_CHANNEL => {
+                let code = try!(u8::decode(source));
+                match code {
+                    STATUS_REQUEST_SPECIFIER => {return Ok(StatusRequest(try!(super::StatusRequest::decode(source))));},
+                    STATUS_RESPONSE_SPECIFIER => {return Ok(StatusResponse(try!(super::StatusResponse::decode(source))));},
+                    CONNECT_SPECIFIER => {return Ok(Connect);},
+                    CONNECTED_SPECIFIER => {return Ok(Connected(try!(u32::decode(source))));},
+                    ABORTED_SPECIFIER => {return Ok(Aborted(try!(String::decode(source))));},
+                    _ => {return Err(Invalid);},
+                }
+            },
+            HEARTBEAT_CHANNEL => {
+                let count = try!(u32::decode(source));
+                let sent_packets = try!(u64::decode(source));
+                let received_packets = try!(u64::decode(source));
+                return Ok(Heartbeat{counter: count, sent: sent_packets, received: received_packets});
+            },
+            ECHO_CHANNEL => {
+                let value = try!(i16::decode(source));
+                return Ok(Echo(value));
+            },
+            _ => {return Err(Invalid)},
+        }
+    }
+}
+
 impl Decodable for StatusRequest {
     type Output = StatusRequest;
     fn decode(source: &mut PacketReader)->Result<Self::Output, PacketDecodingError> {

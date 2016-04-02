@@ -93,3 +93,36 @@ StatusResponse::VersionResponse("1.0".to_string()));
 decoder_test!(test_decode_extension_response, StatusResponse,
 [2u8, b't', b'e', b's', b't', b'_', b'a', b't', b'e', b's', b't', 0, 1],
 StatusResponse::ExtensionResponse{name: "test_atest".to_string(), supported: true});
+
+decoder_test!(test_decode_status_request_packet, Packet,
+[255u8, 255, 0, 2,
+b'a', b'_', b'b', 0],
+Packet::StatusRequest(StatusRequest::ExtensionQuery("a_b".to_string())));
+
+decoder_test!(test_decode_status_response_packet, Packet,
+[255u8, 255, 1, 2,
+b'a', b'_', b'b', 0, 1],
+Packet::StatusResponse(StatusResponse::ExtensionResponse{name: "a_b".to_string(), supported: true}));
+
+decoder_test!(test_decode_connect_packet, Packet,
+[255u8, 255, 2],
+Packet::Connect);
+
+decoder_test!(test_decode_connected_packet, Packet,
+[255u8, 255, 3, 0, 0, 0, 5],
+Packet::Connected(5));
+
+decoder_test!(test_decode_aborted_packet, Packet,
+[255u8, 255, 4, b'e', b'r', b'r', 0],
+Packet::Aborted("err".to_string()));
+
+decoder_test!(test_decode_heartbeat_packet, Packet,
+[255u8, 254,
+0, 0, 0, 1,
+0, 0, 0, 0, 0, 0, 0, 5,
+0, 0, 0, 0, 0, 0, 0, 10],
+Packet::Heartbeat{counter: 1, sent: 5, received: 10});
+
+decoder_test!(test_decode_echo_packet, Packet,
+[255u8, 253, 0x12, 0x34],
+Packet::Echo(0x1234));
