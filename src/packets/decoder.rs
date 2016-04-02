@@ -50,7 +50,7 @@ impl Decodable for StatusRequest {
     fn decode(source: &mut PacketReader)->Result<Self::Output, PacketDecodingError> {
         use self::PacketDecodingError::*;
         use super::StatusRequest::*;
-        let code = try!(source.read_u8().or(Err(TooSmall)));
+        let code = try!(u8::decode(source));
         match code {
             STATUS_FASTNET_SPECIFIER => {return Ok(FastnetQuery);},
             STATUS_VERSION_SPECIFIER => {return Ok(VersionQuery);},
@@ -59,6 +59,18 @@ impl Decodable for StatusRequest {
                 return Ok(ExtensionQuery(extension_name));
             },
             _ => {return Err(Invalid);},
+        }
+    }
+}
+
+impl Decodable for bool {
+    type Output = bool;
+    fn decode(source: &mut PacketReader)->Result<bool, PacketDecodingError> {
+        let code = try!(u8::decode(source));
+        return match code {
+            0 => Ok(false),
+            1 => Ok(true),
+            _ => Err(PacketDecodingError::Invalid),
         }
     }
 }

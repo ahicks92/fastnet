@@ -15,6 +15,14 @@ macro_rules! decoder_test {
     }
 }
 
+decoder_test!(test_decode_true, bool,
+[1u8],
+true);
+
+decoder_test!(test_decode_false, bool,
+[0u8],
+false);
+
 decoder_test!(test_decode_i8_positive, i8,
 [1u8],
 1i8);
