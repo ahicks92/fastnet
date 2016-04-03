@@ -6,7 +6,7 @@ mod encoder_tests;
 mod decoder;
 mod decoder_tests;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Packet {
     //Status request and response (channel -1)
     StatusRequest(StatusRequest),
@@ -23,14 +23,14 @@ pub enum Packet {
     Echo(i16),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum StatusRequest {
     FastnetQuery,
     VersionQuery,
     ExtensionQuery(String),
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum StatusResponse {
     FastnetResponse(bool),
     VersionResponse(String),

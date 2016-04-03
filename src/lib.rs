@@ -7,3 +7,4 @@ mod packets;
 mod handlers;
 mod server;
 mod mio_server;
+mod test_server;
