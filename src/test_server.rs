@@ -4,9 +4,16 @@ use server::*;
 use packets::*;
 use std::net;
 
+#[derive(Default, Debug)]
 pub struct TestServer {
-    sent_packets: Vec<(net::IpAddr, Packet)>,
-    established_connections: Vec<net::IpAddr>,
+    pub sent_packets: Vec<(net::IpAddr, Packet)>,
+    pub established_connections: Vec<net::IpAddr>,
+}
+
+impl TestServer {
+    pub fn new()->TestServer {
+        return TestServer::default();
+    }
 }
 
 impl Server for TestServer {
@@ -15,14 +22,5 @@ impl Server for TestServer {
     }
     fn make_connection(&mut self, ip: &net::IpAddr) {
         self.established_connections.push(*ip);
-    }
-}
-
-macro_rules! assert_sent_packets {
-    ($server: expr, $ip: expr, ($packets: expr),* ) => {
-        {
-            let i = $server.sent_packets.iter();
-            $(assert_eq!(($ip, $packets), i.next().unwrap());)*
-        }
     }
 }
