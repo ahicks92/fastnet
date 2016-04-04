@@ -1,11 +1,14 @@
 use super::packets;
 use super::server;
-use mio;
+use std::net;
 
 mod connection;
 mod echo;
 mod heartbeat;
 mod status;
+
+//We have significanty less tests than the packets module.
+//Consequently, they're in with the types they test.
 
 pub use self::connection::*;
 pub use self::echo::*;
@@ -20,12 +23,12 @@ pub trait PacketHandler {
         false
     }
     //This variant is called when the packet is not for a connection.
-    fn handle_incoming_packet_connectionless(&mut self, packet: &packets::Packet, ip: &mio::IpAddr, server: &mut server::Server)->bool {
+    fn handle_incoming_packet_connectionless(&mut self, packet: &packets::Packet, ip: &net::IpAddr, server: &mut server::Server)->bool {
         false
     }
     //This variant is called in both cases, and is used primarily for the status responses.
     //It is called before either handle_incoming_packet or handle_incoming_packet_connectionless.
-    fn handle_incoming_packet_always(&mut self, packet: &packets::Packet, ip: &mio::IpAddr, server: &mut server::Server)->bool {
+    fn handle_incoming_packet_always(&mut self, packet: &packets::Packet, ip: &net::IpAddr, server: &mut server::Server)->bool {
         false
     }
     //This happens if and only if get_tick_frequency returns a time.

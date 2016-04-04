@@ -1,14 +1,14 @@
 use super::*;
 use super::super::packets::*;
 use super::super::server;
-use mio;
+use std::net;
 
 pub struct EchoHandler {
-    ip: mio::IpAddr,
+    ip: net::IpAddr,
 }
 
 impl EchoHandler {
-    fn new(ip: mio::IpAddr) {
+    fn new(ip: net::IpAddr) {
         EchoHandler{ip: ip};
     }
 }

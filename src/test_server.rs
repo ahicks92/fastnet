@@ -2,28 +2,19 @@
 
 use server::*;
 use packets::*;
-use mio;
+use std::net;
 
 pub struct TestServer {
-    sent_packets: Vec<(mio::IpAddr, Packet)>,
-    established_connections: Vec<mio::IpAddr>,
+    sent_packets: Vec<(net::IpAddr, Packet)>,
+    established_connections: Vec<net::IpAddr>,
 }
 
 impl Server for TestServer {
-    fn send(&mut self, packet: &Packet, ip: &mio::IpAddr) {
-        //Apparently mio doesn't make IpAddr copyable or cloneable.
-        let pushable_ip = match *ip {
-            mio::IpAddr::V4(x) => mio::IpAddr::V4(x),
-            mio::IpAddr::V6(x) => mio::IpAddr::V6(x),
-        };
-        self.sent_packets.push((pushable_ip, packet.clone()));
+    fn send(&mut self, packet: &Packet, ip: &net::IpAddr) {
+        self.sent_packets.push((*ip, packet.clone()));
     }
-    fn make_connection(&mut self, ip: &mio::IpAddr) {
-        let pushable_ip = match *ip {
-            mio::IpAddr::V4(x) => mio::IpAddr::V4(x),
-            mio::IpAddr::V6(x) => mio::IpAddr::V6(x),
-        };
-        self.established_connections.push(pushable_ip);
+    fn make_connection(&mut self, ip: &net::IpAddr) {
+        self.established_connections.push(*ip);
     }
 }
 
