@@ -8,7 +8,7 @@ use std::net;
 //This macro generates a test, passing the second argument a server and ip.
 //The macro then checks to see if we sent all the packets after the block.
 //Per the Rust IRC this has to be before the mods.
-macro_rules! handler_test {
+macro_rules! responder_test {
     ($name: ident, $test: expr, $($expected: expr),*) => {
         #[test]
         fn $name() {
@@ -34,7 +34,7 @@ pub use self::echo::*;
 pub use self::heartbeat::*;
 pub use self::status::*;
 
-pub trait PacketHandler {
+pub trait PacketResponder {
     //Return true if and only if this handler handles the packet.
     //This function is called if and only if the packet is destined for an already-established connection and this handler is associated with it.
     //The server handles the initial association when connections are created.

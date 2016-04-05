@@ -1,5 +1,4 @@
 use packets;
-use handlers;
 use std::net;
 
 //This module specifies the server trait.
