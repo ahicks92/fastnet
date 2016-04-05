@@ -50,11 +50,4 @@ pub trait PacketResponder {
     fn handle_incoming_packet_always<T: server::Server>(&mut self, packet: &packets::Packet, ip: net::IpAddr, server: &mut T)->bool {
         false
     }
-    //This happens if and only if get_tick_frequency returns a time.
-    fn tick<T: server::Server>(&mut self, server: &mut T) {
-    }
-    //Return a time in MS.
-    fn get_tick_frequency(&self)->Option<u32> {
-        None
-    }
 }
