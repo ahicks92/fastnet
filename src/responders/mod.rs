@@ -50,4 +50,12 @@ pub trait PacketResponder {
     fn handle_incoming_packet_always<T: server::Server>(&mut self, packet: &packets::Packet, ip: net::IpAddr, server: &mut T)->bool {
         false
     }
+    //This allows seeing outgoing packets and optionally stopping them.
+    //Primarily for heartbeats.  The naming is like the above.
+    fn handle_outgoing_packet<T: server::Server>(&mut self, packet: &packets::Packet, server: &mut T)->bool {
+        false
+    }
+    fn handle_outgoing_packet_always<T: server::Server>(&mut self, packet: &packets::Packet, ip: net::IpAddr, server: &mut T)->bool {
+        false
+    }
 }
