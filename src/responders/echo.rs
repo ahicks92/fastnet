@@ -1,0 +1,32 @@
+use super::*;
+use super::super::packets::*;
+use super::super::server::{self, Server};
+use super::super::test_server;
+use std::net;
+
+pub struct EchoResponder {
+    ip: net::IpAddr,
+}
+
+impl EchoResponder {
+    fn new(ip: net::IpAddr)->EchoResponder {
+        EchoResponder{ip: ip}
+    }
+}
+
+impl PacketResponder for EchoResponder {
+    fn handle_incoming_packet<T: Server>(&mut self, packet: &Packet, server: &mut T)->bool {
+        match *packet {
+            Packet::Echo(id) => {
+                server.send(packet, &self.ip);
+                true
+            },
+            _ => false
+        }
+    }
+}
+
+responder_test!(test_echo_responder, |server: &mut test_server::TestServer, ip: net::IpAddr| {
+    let mut responder = EchoResponder::new(ip);
+    responder.handle_incoming_packet(&Packet::Echo(16), server);
+}, Packet::Echo(16));
