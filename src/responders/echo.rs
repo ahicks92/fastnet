@@ -18,7 +18,7 @@ impl PacketResponder for EchoResponder {
     fn handle_incoming_packet<T: Server>(&mut self, packet: &Packet, server: &mut T)->bool {
         match *packet {
             Packet::Echo(id) => {
-                server.send(packet, &self.ip);
+                server.send(packet.clone(), self.ip);
                 true
             },
             _ => false

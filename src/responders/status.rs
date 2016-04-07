@@ -34,14 +34,14 @@ impl PacketResponder for StatusResponder {
         match *packet {
             Packet::StatusRequest(ref req) => {
                 server.send(
-                &match *req {
+                match *req {
                     StatusRequest::FastnetQuery => Packet::StatusResponse(StatusResponse::FastnetResponse(self.listening)),
                     StatusRequest::VersionQuery => Packet::StatusResponse(StatusResponse::VersionResponse(self.version.clone())),
                     StatusRequest::ExtensionQuery(ref name) => {
                         let supported = self.supported_extensions.contains(name);
                         Packet::StatusResponse(StatusResponse::ExtensionResponse{name: name.clone(), supported: supported})
                     }
-                }, &ip);
+                }, ip);
                 true
             },
             _ => false
