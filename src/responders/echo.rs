@@ -3,12 +3,13 @@ use super::super::packets::*;
 use super::super::server::*;
 use std::net;
 
+#[derive(Debug)]
 pub struct EchoResponder {
     ip: net::IpAddr,
 }
 
 impl EchoResponder {
-    fn new(ip: net::IpAddr)->EchoResponder {
+    pub fn new(ip: net::IpAddr)->EchoResponder {
         EchoResponder{ip: ip}
     }
 }

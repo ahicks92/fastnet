@@ -1,4 +1,5 @@
 use packets;
+use responders;
 use std::net;
 
 mod test_server;
@@ -8,12 +9,22 @@ mod internal_server;
 pub use self::test_server::*;
 pub use self::mio_server::*;
 
-//This module specifies the server trait.
-//Actual servers are found elsewhere: either mio_server.rs or test_server.rs.
-
-//TODO: actually fill this out with stuff.
 #[derive(Debug)]
-pub struct Connection;
+pub struct Connection {
+    pub ip: net::IpAddr,
+    pub heartbeat_responder: responders::HeartbeatResponder,
+    pub echo_responder: responders::EchoResponder,
+}
+
+impl Connection {
+    pub fn new(ip: net::IpAddr)->Connection {
+        Connection {
+            ip: ip,
+            heartbeat_responder: responders::HeartbeatResponder::new(),
+            echo_responder: responders::EchoResponder::new(ip),
+        }
+    }
+}
 
 pub trait Server {
     //Send a packet.
