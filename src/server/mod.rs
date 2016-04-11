@@ -21,7 +21,7 @@ impl Connection {
         Connection {
             ip: ip,
             heartbeat_responder: responders::HeartbeatResponder::new(),
-            echo_responder: responders::EchoResponder::new(ip),
+            echo_responder: responders::EchoResponder::new(),
         }
     }
 }
@@ -40,7 +40,7 @@ The single method here should return true if the packet was handled, otherwise f
 The server tries all responders associated with a connection, then tries all responders not associated with any connection.
 If a packet isn't handled by anything, it is dropped.*/
 pub trait ConnectedPacketResponder {
-    fn handle_incoming_packet<T: Server>(&mut self, packet: &packets::Packet, server: &mut T)->bool {
+    fn handle_incoming_packet<T: Server>(&mut self, packet: &packets::Packet, connection: &Connection, server: &mut T)->bool {
         false
     }
 }

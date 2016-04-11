@@ -13,8 +13,9 @@ macro_rules! responder_test {
         fn $name() {
             let mut server = TestServer::new();
             let ip = net::IpAddr::V4(net::Ipv4Addr::new(127, 0, 0, 1));
-            $test(&mut server, ip);
-            let mut c  = 0usize;
+            let connection = Connection::new(ip);
+            $test(&mut server, &connection, ip);
+            let mut c = 0usize;
             let mut i = server.sent_packets.iter();
             $(assert_eq!(&(ip, $expected), i.next().unwrap()); c+=1;)*
             assert_eq!(c, server.sent_packets.len());
