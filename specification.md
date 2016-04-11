@@ -81,13 +81,14 @@ The rest of this specification demonstrates this language, which is mostly self-
 
 It should be noted that the strings can naively be used for DDOS attacks: send the encoder a sufficiently large packet and it will grind to a hault.
 This is not an issue in practice because of two things.
-First, the largest packet Fastnet sends is 500 bytes.  Larger packets are not permitted, so a conforming implementation can assume that any larger packet is invalid.
+First, the largest packet Fastnet sends is 1000 bytes.  Larger packets are not permitted, so a conforming implementation can assume that any larger packet is invalid.
 Second, extremely large UDP packets are unlikely to arrive at all even assuming they can be sent in the first place.
 
 ##Transports##
 
 A transport is a bidirectional method for moving packets from a sender to a receiver.
-Fastnet requires that the maximum packet size of the transport be greater than or equal to 500 bytes and guarantees that it will never send a packet over this size.
+Fastnet requires that the maximum packet size of the transport be greater than or equal to 1000 bytes and guarantees that it will never send a packet over this size.
+In practice, Fastnet almost always sends much smaller packets.
 
 ##Basic Packet Format##
 
