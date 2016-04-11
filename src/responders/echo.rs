@@ -1,6 +1,6 @@
 use super::*;
 use super::super::packets::*;
-use super::super::server::{self, Server};
+use super::super::server::*;
 use super::super::test_server;
 use std::net;
 
@@ -14,7 +14,7 @@ impl EchoResponder {
     }
 }
 
-impl PacketResponder for EchoResponder {
+impl ConnectedPacketResponder for EchoResponder {
     fn handle_incoming_packet<T: Server>(&mut self, packet: &Packet, server: &mut T)->bool {
         match *packet {
             Packet::Echo(id) => {

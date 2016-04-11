@@ -1,5 +1,5 @@
 use super::*;
-use super::super::server::{self, Server};
+use super::super::server::*;
 use super::super::test_server;
 use super::super::packets::*;
 use std::collections;
@@ -29,8 +29,8 @@ impl StatusResponder {
     }
 }
 
-impl PacketResponder for StatusResponder {
-    fn handle_incoming_packet_always<T: server::Server>(&mut self, packet: &Packet, ip: net::IpAddr, server: &mut T)->bool {
+impl ConnectionlessPacketResponder for StatusResponder {
+    fn handle_incoming_packet_connectionless<T: Server>(&mut self, packet: &Packet, ip: net::IpAddr, server: &mut T)->bool {
         match *packet {
             Packet::StatusRequest(ref req) => {
                 server.send(
@@ -51,9 +51,9 @@ impl PacketResponder for StatusResponder {
 
 responder_test!(test_status_responder, |server: &mut test_server::TestServer, ip: net::IpAddr| {
     let mut responder = StatusResponder::new(true, "1.0", &["test_atest"]);
-    responder.handle_incoming_packet_always(&Packet::StatusRequest(StatusRequest::FastnetQuery), ip, server);
-    responder.handle_incoming_packet_always(&Packet::StatusRequest(StatusRequest::VersionQuery), ip, server);
-    responder.handle_incoming_packet_always(&Packet::StatusRequest(StatusRequest::ExtensionQuery("test_atest".to_string())), ip, server);
+    responder.handle_incoming_packet_connectionless(&Packet::StatusRequest(StatusRequest::FastnetQuery), ip, server);
+    responder.handle_incoming_packet_connectionless(&Packet::StatusRequest(StatusRequest::VersionQuery), ip, server);
+    responder.handle_incoming_packet_connectionless(&Packet::StatusRequest(StatusRequest::ExtensionQuery("test_atest".to_string())), ip, server);
 },
 Packet::StatusResponse(StatusResponse::FastnetResponse(true)),
 Packet::StatusResponse(StatusResponse::VersionResponse("1.0".to_string())),

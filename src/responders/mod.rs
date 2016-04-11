@@ -35,29 +35,3 @@ pub use self::connection::*;
 pub use self::echo::*;
 pub use self::heartbeat::*;
 pub use self::status::*;
-
-pub trait PacketResponder {
-    //Return true if and only if this handler handles the packet.
-    //This function is called if and only if the packet is destined for an already-established connection and this handler is associated with it.
-    //The server handles the initial association when connections are created.
-    fn handle_incoming_packet<T: server::Server>(&mut self, packet: &packets::Packet, server: &mut T)->bool {
-        false
-    }
-    //This variant is called when the packet is not for a connection.
-    fn handle_incoming_packet_connectionless<T: server::Server>(&mut self, packet: &packets::Packet, ip: net::IpAddr, server: &mut T)->bool {
-        false
-    }
-    //This variant is called in both cases, and is used primarily for the status responses.
-    //It is called before either handle_incoming_packet or handle_incoming_packet_connectionless.
-    fn handle_incoming_packet_always<T: server::Server>(&mut self, packet: &packets::Packet, ip: net::IpAddr, server: &mut T)->bool {
-        false
-    }
-    //This allows seeing outgoing packets and optionally stopping them.
-    //Primarily for heartbeats.  The naming is like the above.
-    fn handle_outgoing_packet<T: server::Server>(&mut self, packet: &packets::Packet, server: &mut T)->bool {
-        false
-    }
-    fn handle_outgoing_packet_always<T: server::Server>(&mut self, packet: &packets::Packet, ip: net::IpAddr, server: &mut T)->bool {
-        false
-    }
-}

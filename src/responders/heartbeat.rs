@@ -1,4 +1,4 @@
-use super::super::server;
+use super::super::server::*;
 use super::super::packets;
 use super::*;
 use super::super::packets::*;
@@ -14,8 +14,8 @@ impl HeartbeatResponder {
     }
 }
 
-impl PacketResponder for HeartbeatResponder {
-    fn handle_incoming_packet<T: server::Server>(&mut self, packet: &packets::Packet, server: &mut T)->bool {
+impl ConnectedPacketResponder for HeartbeatResponder {
+    fn handle_incoming_packet<T: Server>(&mut self, packet: &packets::Packet, server: &mut T)->bool {
         //For now, do nothing but swallow the heartbeat.
         if let packets::Packet::Heartbeat{counter: c, sent: s, received: r} = *packet {true}
         else {false}

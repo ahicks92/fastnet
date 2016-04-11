@@ -1,5 +1,5 @@
 use super::*;
-use super::super::server;
+use super::super::server::*;
 use super::super::packets;
 use super::super::test_server;
 use std::net;
@@ -13,9 +13,8 @@ impl ConnectionResponder {
     }
 }
 
-
-impl PacketResponder for ConnectionResponder {
-    fn handle_incoming_packet_connectionless<T: server::Server>(&mut self, packet: &packets::Packet, ip: net::IpAddr, server: &mut T)->bool {
+impl ConnectionlessPacketResponder for ConnectionResponder {
+    fn handle_incoming_packet_connectionless<T: Server>(&mut self, packet: &packets::Packet, ip: net::IpAddr, server: &mut T)->bool {
         match *packet {
             packets::Packet::Connect => {
                 let maybe_connected = server.make_connection(ip);
