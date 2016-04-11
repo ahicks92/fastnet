@@ -207,14 +207,14 @@ Servers must ignore any packets not involved in an active connection.
 Packet format:
 
 ```
-heartbeat = -2:i16 counter: u32 sent_packets: u64 received_packets: u64
+heartbeat = -2:i16 counter: u64 sent_packets: u64 received_packets: u64
 ```
 
 Channel -2 must be the heartbeat channel.
 
 A heartbeat is composed of three pieces of information:
 
-- A wrapping 32-bit counter, specifying how many times the sender has sent the heartbeat.
+- A 64-bit counter, interpreted as a sequence number.
 
 - A 64-bit integer specifying how many packets this end of the connection has sent.
 

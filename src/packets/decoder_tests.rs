@@ -118,7 +118,7 @@ Packet::Aborted("err".to_string()));
 
 decoder_test!(test_decode_heartbeat_packet, Packet,
 [255u8, 254,
-0, 0, 0, 1,
+0, 0, 0, 0, 0, 0, 0, 1,
 0, 0, 0, 0, 0, 0, 0, 5,
 0, 0, 0, 0, 0, 0, 0, 10],
 Packet::Heartbeat{counter: 1, sent: 5, received: 10});

@@ -64,7 +64,7 @@ impl Decodable for Packet {
                 }
             },
             HEARTBEAT_CHANNEL => {
-                let count = try!(u32::decode(source));
+                let count = try!(u64::decode(source));
                 let sent_packets = try!(u64::decode(source));
                 let received_packets = try!(u64::decode(source));
                 return Ok(Heartbeat{counter: count, sent: sent_packets, received: received_packets});

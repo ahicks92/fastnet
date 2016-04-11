@@ -21,7 +21,7 @@ pub enum Packet {
     Aborted(String),
     
     //Heartbeat (channel -2).
-    Heartbeat{counter: u32, sent: u64, received: u64},
+    Heartbeat{counter: u64, sent: u64, received: u64},
 
     Echo(i16),
 }

@@ -97,7 +97,7 @@ encoder_test!(test_encode_aborted_packet,
 Packet::Aborted("fail".to_string()));
 
 encoder_test!(test_encode_heartbeat_packet,
-[255, 254, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 15],
+[255, 254, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 10, 0, 0, 0, 0, 0, 0, 0, 15],
 Packet::Heartbeat{counter: 5, sent: 10, received: 15});
 
 encoder_test!(test_encode_echo_packet,
