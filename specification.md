@@ -95,14 +95,31 @@ In practice, Fastnet almost always sends much smaller packets.
 Basic packet format:
 
 ```
-fastnet_packet = channel:i16 payload:p
+fastnet_packet = checksum: u64 channel:i16 payload:p
 ```
 
-A Fastnet packet must consist of a 2-byte channel identifier as a signed 16-bit integer followed by a packet payload of no more than the maximum packet size of the transport minus 2 bytes.
+A fastnet packet consists of:
+
+- A 4-byte CRC32 Castagnoli (CRC32C) checksum.  The polynomial for this checksum is 0x1EDC6F41.
+
+- A 2-byte signed channel identifier.  Negative values are for Fastnet's use.
+
+- The payload of the packet.
+
+
 Channels 0 to 32767 must be reserved for the application and are referred to as message channels.
 All other channels must be reserved for Fastnet's protocol and used as specified here.
 
+
 An implementation must prevent the user from using negative channel numbers for any purpose.
+
+An implementation must verify the checksum and ignore all packets for which the checksum is not valid.
+
+The checksum used here is only 32 bits.  This specification may strengthen it in future.  When coupled with the optional UDP checksum, the chance of receiving a corrupted packet is quite small.  Roughly 1 in 4 billion corrupted packets can get through.
+On a link where enough packets are corrupted to cause a problem, the user will probably not be connected reliably anyway.
+Even then, the application will on average have to send multiple gigabytes of data before seeing corruption.
+
+The rest of this specification assumes that the checksum is present and refrains from mentioning it in packet format specifications for brevity.
 
 ##Status Queries##
 
