@@ -119,6 +119,8 @@ The checksum used here is only 32 bits.  This specification may strengthen it in
 On a link where enough packets are corrupted to cause a problem, the user will probably not be connected reliably anyway.
 Even then, the application will on average have to send multiple gigabytes of data before seeing corruption.
 
+This checksum does make packets larger.  Unfortunately, the UDP checksum is optional.  Without it, it is possible for every corrupted packet to get through.
+
 The rest of this specification assumes that the checksum is present and refrains from mentioning it in packet format specifications for brevity.
 
 ##Status Queries##

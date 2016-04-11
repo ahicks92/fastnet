@@ -1,3 +1,6 @@
+/*! Provides packet encoding and decoding functionality, as well as the packet enum.
+
+This module does not handle the checksum.  If it did, it would be incredibly difficult to write Fastnet tests.*/
 pub use self::encoder::*;
 pub use self::decoder::*;
 
