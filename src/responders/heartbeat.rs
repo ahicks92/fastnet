@@ -2,7 +2,6 @@ use super::super::server::*;
 use super::super::packets;
 use super::*;
 use super::super::packets::*;
-use super::super::test_server;
 use std::net;
 
 #[derive(Default, Debug)]

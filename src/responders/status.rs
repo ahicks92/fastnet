@@ -1,6 +1,5 @@
 use super::*;
 use super::super::server::*;
-use super::super::test_server;
 use super::super::packets::*;
 use std::collections;
 use std::iter::{self, Iterator, IntoIterator};
@@ -49,7 +48,7 @@ impl ConnectionlessPacketResponder for StatusResponder {
     }
 }
 
-responder_test!(test_status_responder, |server: &mut test_server::TestServer, ip: net::IpAddr| {
+responder_test!(test_status_responder, |server: &mut TestServer, ip: net::IpAddr| {
     let mut responder = StatusResponder::new(true, "1.0", &["test_atest"]);
     responder.handle_incoming_packet_connectionless(&Packet::StatusRequest(StatusRequest::FastnetQuery), ip, server);
     responder.handle_incoming_packet_connectionless(&Packet::StatusRequest(StatusRequest::VersionQuery), ip, server);

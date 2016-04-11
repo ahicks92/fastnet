@@ -1,8 +1,7 @@
 #![macro_use]
 
 use super::packets;
-use super::server;
-use super::test_server;
+use super::server::*;
 use std::net;
 
 //This macro generates a test, passing the second argument a server and ip.
@@ -12,7 +11,7 @@ macro_rules! responder_test {
     ($name: ident, $test: expr, $($expected: expr),*) => {
         #[test]
         fn $name() {
-            let mut server = test_server::TestServer::new();
+            let mut server = TestServer::new();
             let ip = net::IpAddr::V4(net::Ipv4Addr::new(127, 0, 0, 1));
             $test(&mut server, ip);
             let mut c  = 0usize;

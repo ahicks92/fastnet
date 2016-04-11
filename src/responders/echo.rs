@@ -1,7 +1,6 @@
 use super::*;
 use super::super::packets::*;
 use super::super::server::*;
-use super::super::test_server;
 use std::net;
 
 pub struct EchoResponder {
@@ -26,7 +25,7 @@ impl ConnectedPacketResponder for EchoResponder {
     }
 }
 
-responder_test!(test_echo_responder, |server: &mut test_server::TestServer, ip: net::IpAddr| {
+responder_test!(test_echo_responder, |server: &mut TestServer, ip: net::IpAddr| {
     let mut responder = EchoResponder::new(ip);
     responder.handle_incoming_packet(&Packet::Echo(16), server);
 }, Packet::Echo(16));

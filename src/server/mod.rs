@@ -1,6 +1,12 @@
 use packets;
 use std::net;
 
+mod test_server;
+mod mio_server;
+
+pub use self::test_server::*;
+pub use self::mio_server::*;
+
 //This module specifies the server trait.
 //Actual servers are found elsewhere: either mio_server.rs or test_server.rs.
 
