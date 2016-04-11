@@ -3,12 +3,17 @@ use std::net;
 
 mod test_server;
 mod mio_server;
+mod internal_server;
 
 pub use self::test_server::*;
 pub use self::mio_server::*;
 
 //This module specifies the server trait.
 //Actual servers are found elsewhere: either mio_server.rs or test_server.rs.
+
+//TODO: actually fill this out with stuff.
+#[derive(Debug)]
+pub struct Connection;
 
 pub trait Server {
     //Send a packet.
