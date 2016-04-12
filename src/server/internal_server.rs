@@ -10,7 +10,7 @@ use std::net;
 
 pub struct InternalServer {
     outgoing_packets: collections::VecDeque<packets::Packet>,
-    connections: collections::HashMap<net::IpAddr, Connection>,
+    connections: collections::HashMap<(net::IpAddr, u16), Connection>,
 }
 
 impl InternalServer {
