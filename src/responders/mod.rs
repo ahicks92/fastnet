@@ -13,7 +13,7 @@ macro_rules! responder_test {
         fn $name() {
             let mut server = TestServer::new();
             let ip = net::IpAddr::V4(net::Ipv4Addr::new(127, 0, 0, 1));
-            let connection = Connection::new(ip, 0);
+            let connection = Connection::new(1, ip, 0);
             $test(&mut server, &connection, ip);
             let mut c = 0usize;
             let mut i = server.sent_packets.iter();

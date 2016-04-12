@@ -7,4 +7,3 @@ authors = ["Austin Hicks <camlorn@camlorn.net>"]
 mio = "0.5.0"
 byteorder = "0.5.0"
 crc = "*"
-slab = "0.1.3"

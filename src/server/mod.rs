@@ -11,6 +11,7 @@ pub use self::mio_server::*;
 
 #[derive(Debug)]
 pub struct Connection {
+    pub id: u32,
     pub ip: net::IpAddr,
     pub port: u16,
     pub heartbeat_responder: responders::HeartbeatResponder,
@@ -18,13 +19,14 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn new(ip: net::IpAddr, port: u16)->Connection {
+    pub fn new(id: u32, ip: net::IpAddr, port: u16)->Connection {
         Connection {
+            id: id,
             ip: ip,
             port: port,
             heartbeat_responder: responders::HeartbeatResponder::new(),
             echo_responder: responders::EchoResponder::new(),
-        }
+                    }
     }
 }
 
