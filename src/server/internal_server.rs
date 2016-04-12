@@ -37,7 +37,7 @@ impl InternalServer {
 }
 
 impl Server for InternalServer {
-    fn send(&mut self, packet: packets::Packet, ip: net::IpAddr, port: u16) {
+    fn send(&mut self, packet: &packets::Packet, ip: net::IpAddr, port: u16) {
     }
 
     fn make_connection(&mut self, ip: net::IpAddr, port: u16)->Result<u32, String> {

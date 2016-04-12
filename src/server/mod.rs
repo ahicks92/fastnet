@@ -32,7 +32,7 @@ impl Connection {
 
 pub trait Server {
     //Send a packet.
-    fn send(&mut self, packet: packets::Packet, ip: net::IpAddr, port: u16);
+    fn send(&mut self, packet: &packets::Packet, ip: net::IpAddr, port: u16);
     //Upgrade an ip address/port pair to a connection.
     fn make_connection(&mut self, ip: net::IpAddr, port: u16)->Result<u32, String>;
 }

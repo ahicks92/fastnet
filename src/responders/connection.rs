@@ -21,7 +21,7 @@ impl ConnectionlessPacketResponder for ConnectionResponder {
                     Ok(id) => packets::Packet::Connected(id),
                     Err(ref msg) => packets::Packet::Aborted(msg.clone())
                 };
-                server.send(response, ip, port);
+                server.send(&response, ip, port);
                 true
             },
             _ => false

@@ -33,7 +33,7 @@ impl ConnectionlessPacketResponder for StatusResponder {
         match *packet {
             Packet::StatusRequest(ref req) => {
                 server.send(
-                match *req {
+                &match *req {
                     StatusRequest::FastnetQuery => Packet::StatusResponse(StatusResponse::FastnetResponse(self.listening)),
                     StatusRequest::VersionQuery => Packet::StatusResponse(StatusResponse::VersionResponse(self.version.clone())),
                     StatusRequest::ExtensionQuery(ref name) => {

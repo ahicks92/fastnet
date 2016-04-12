@@ -17,9 +17,10 @@ impl TestServer {
 }
 
 impl Server for TestServer {
-    fn send(&mut self, packet: Packet, ip: net::IpAddr, port: u16) {
-        self.sent_packets.push((ip, port, packet));
+    fn send(&mut self, packet: &Packet, ip: net::IpAddr, port: u16) {
+        self.sent_packets.push((ip, port, packet.clone()));
     }
+
     fn make_connection(&mut self, ip: net::IpAddr, port: u16)->Result<u32, String> {
         self.established_connections.push((ip, port));
         Ok(1)
