@@ -12,14 +12,16 @@ pub use self::mio_server::*;
 #[derive(Debug)]
 pub struct Connection {
     pub ip: net::IpAddr,
+    pub port: u16,
     pub heartbeat_responder: responders::HeartbeatResponder,
     pub echo_responder: responders::EchoResponder,
 }
 
 impl Connection {
-    pub fn new(ip: net::IpAddr)->Connection {
+    pub fn new(ip: net::IpAddr, port: u16)->Connection {
         Connection {
             ip: ip,
+            port: port,
             heartbeat_responder: responders::HeartbeatResponder::new(),
             echo_responder: responders::EchoResponder::new(),
         }
@@ -28,11 +30,10 @@ impl Connection {
 
 pub trait Server {
     //Send a packet.
-    fn send(&mut self, packet: packets::Packet, ip: net::IpAddr);
-    //Upgrade an ip address to a connection.
-    fn make_connection(&mut self, ip: net::IpAddr)->Result<u32, String>;
+    fn send(&mut self, packet: packets::Packet, ip: net::IpAddr, port: u16);
+    //Upgrade an ip address/port pair to a connection.
+    fn make_connection(&mut self, ip: net::IpAddr, port: u16)->Result<u32, String>;
 }
-
 
 /**Represents responders which are associated with connections.
 
@@ -52,7 +53,7 @@ The single method here should return true if the packet was handled, otherwise f
 The server tries all responders associated with a connection, then tries all responders not associated with any connection.
 If a packet isn't handled by anything, it is dropped.*/
 pub trait ConnectionlessPacketResponder {
-    fn handle_incoming_packet_connectionless<T: Server>(&mut self, packet: &packets::Packet, ip: net::IpAddr, server: &mut T)->bool {
+    fn handle_incoming_packet_connectionless<T: Server>(&mut self, packet: &packets::Packet, ip: net::IpAddr, port: u16, server: &mut T)->bool {
         false
     }
 }

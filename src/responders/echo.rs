@@ -16,7 +16,7 @@ impl ConnectedPacketResponder for EchoResponder {
     fn handle_incoming_packet<T: Server>(&mut self, packet: &Packet, connection: &Connection, server: &mut T)->bool {
         match *packet {
             Packet::Echo(id) => {
-                server.send(packet.clone(), connection.ip);
+                server.send(packet.clone(), connection.ip, connection.port);
                 true
             },
             _ => false

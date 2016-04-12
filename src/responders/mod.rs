@@ -13,11 +13,11 @@ macro_rules! responder_test {
         fn $name() {
             let mut server = TestServer::new();
             let ip = net::IpAddr::V4(net::Ipv4Addr::new(127, 0, 0, 1));
-            let connection = Connection::new(ip);
+            let connection = Connection::new(ip, 0);
             $test(&mut server, &connection, ip);
             let mut c = 0usize;
             let mut i = server.sent_packets.iter();
-            $(assert_eq!(&(ip, $expected), i.next().unwrap()); c+=1;)*
+            $(assert_eq!($expected, i.next().unwrap().2); c+=1;)*
             assert_eq!(c, server.sent_packets.len());
         }
     }

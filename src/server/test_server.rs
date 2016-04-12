@@ -6,8 +6,8 @@ use std::net;
 
 #[derive(Default, Debug)]
 pub struct TestServer {
-    pub sent_packets: Vec<(net::IpAddr, Packet)>,
-    pub established_connections: Vec<net::IpAddr>,
+    pub sent_packets: Vec<(net::IpAddr, u16, Packet)>,
+    pub established_connections: Vec<(net::IpAddr, u16)>,
 }
 
 impl TestServer {
@@ -17,11 +17,11 @@ impl TestServer {
 }
 
 impl Server for TestServer {
-    fn send(&mut self, packet: Packet, ip: net::IpAddr) {
-        self.sent_packets.push((ip, packet));
+    fn send(&mut self, packet: Packet, ip: net::IpAddr, port: u16) {
+        self.sent_packets.push((ip, port, packet));
     }
-    fn make_connection(&mut self, ip: net::IpAddr)->Result<u32, String> {
-        self.established_connections.push(ip);
+    fn make_connection(&mut self, ip: net::IpAddr, port: u16)->Result<u32, String> {
+        self.established_connections.push((ip, port));
         Ok(1)
     }
 }
