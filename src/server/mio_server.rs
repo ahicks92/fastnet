@@ -43,6 +43,12 @@ impl<'a> MioHandler<'a> {
     fn pop_outgoing_packet(&mut self)->Option<packets::Packet> {
         self.outgoing_packets.pop_front()
     }
+
+    fn got_packet(&mut self, size: usize, address: net::SocketAddr) {
+        if size == 0 {return};
+        let slice = &self.incoming_packet_buffer[0..size];
+        //Todo: finish.
+    }
 }
 
 impl<'a> Server for MioHandler<'a> {
@@ -63,5 +69,15 @@ impl<'a> mio::Handler for MioHandler<'a> {
     type Message = ();
 
     fn ready(&mut self, event_loop: &mut mio::EventLoop<Self>, token: mio::Token, events: mio::EventSet) {
+        //We only have one socket, so can avoid the match on the token.
+        if events.is_error() {
+            //We need to do something sensible here, probably a callback with whatever state we can get.
+        }
+        if events.is_readable() {
+            let result = self.socket.recv_from(&mut self.incoming_packet_buffer);
+            if let Ok(Some((size, address))) = result {
+                self.got_packet(size, address);
+            }
+        }
     }
 }
