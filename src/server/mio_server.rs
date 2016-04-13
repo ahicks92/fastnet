@@ -12,7 +12,7 @@ const SOCKET_TOKEN: mio::Token = mio::Token(0);
 //The struct is later in this file.
 pub struct MioHandler<'a> {
     outgoing_packets: collections::VecDeque<packets::Packet>,
-    connections: collections::HashMap<(net::IpAddr, u16), Connection>,
+    connections: collections::HashMap<net::SocketAddr, Connection>,
     next_connection_id: u32, //TODO: a counter is not sufficient for long-running programs.
 
     socket: &'a udp::UdpSocket,
@@ -32,18 +32,6 @@ impl<'a> MioHandler<'a> {
         }
     }
 
-    pub fn incoming_packet(&mut self, packet: &packets::Packet, ip: net::IpAddr) {
-        //no-op for now.
-    }
-
-    fn get_outgoing_packet_count(&self)->usize {
-        self.outgoing_packets.len()
-    }
-
-    fn pop_outgoing_packet(&mut self)->Option<packets::Packet> {
-        self.outgoing_packets.pop_front()
-    }
-
     fn got_packet(&mut self, size: usize, address: net::SocketAddr) {
         if size == 0 {return};
         let slice = &self.incoming_packet_buffer[0..size];
@@ -52,14 +40,14 @@ impl<'a> MioHandler<'a> {
 }
 
 impl<'a> Server for MioHandler<'a> {
-    fn send(&mut self, packet: &packets::Packet, ip: net::IpAddr, port: u16) {
+    fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr) {
     }
 
-    fn make_connection(&mut self, ip: net::IpAddr, port: u16)->Result<u32, String> {
+    fn make_connection(&mut self, address: net::SocketAddr)->Result<u32, String> {
         let id = self.next_connection_id;
         self.next_connection_id += 1;
-        let conn = Connection::new(id, ip, port);
-        self.connections.insert((ip, port), conn);
+        let conn = Connection::new(id, address);
+        self.connections.insert(address, conn);
         Ok(id)
     }
 }

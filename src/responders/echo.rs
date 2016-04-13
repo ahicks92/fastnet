@@ -16,7 +16,7 @@ impl ConnectedPacketResponder for EchoResponder {
     fn handle_incoming_packet<T: Server>(&mut self, packet: &Packet, connection: &Connection, server: &mut T)->bool {
         match *packet {
             Packet::Echo(id) => {
-                server.send(packet, connection.ip, connection.port);
+                server.send(packet, connection.address);
                 true
             },
             _ => false
@@ -24,7 +24,7 @@ impl ConnectedPacketResponder for EchoResponder {
     }
 }
 
-responder_test!(test_echo_responder, |server: &mut TestServer, connection: &Connection, ip: net::IpAddr| {
+responder_test!(test_echo_responder, |server: &mut TestServer, connection: &Connection, address: net::SocketAddr| {
     let mut responder = EchoResponder::new();
     responder.handle_incoming_packet(&Packet::Echo(16), connection, server);
 }, Packet::Echo(16));

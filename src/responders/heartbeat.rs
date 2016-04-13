@@ -22,7 +22,7 @@ impl ConnectedPacketResponder for HeartbeatResponder {
 }
 
 //We test that it's no-op anyway...
-responder_test!(test_heartbeat_responder, |server: &mut TestServer, connection: &Connection, ip: net::IpAddr| {
+responder_test!(test_heartbeat_responder, |server: &mut TestServer, connection: &Connection, ip: net::SocketAddr| {
     let mut responder = HeartbeatResponder::new();
     responder.handle_incoming_packet(&packets::Packet::Heartbeat{counter: 1, sent:2, received: 5}, connection, server);
 }, //nothing, but the macro needs the comma.

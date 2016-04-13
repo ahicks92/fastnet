@@ -29,7 +29,7 @@ impl StatusResponder {
 }
 
 impl ConnectionlessPacketResponder for StatusResponder {
-    fn handle_incoming_packet_connectionless<T: Server>(&mut self, packet: &Packet, ip: net::IpAddr, port: u16, server: &mut T)->bool {
+    fn handle_incoming_packet_connectionless<T: Server>(&mut self, packet: &Packet, address: net::SocketAddr, server: &mut T)->bool {
         match *packet {
             Packet::StatusRequest(ref req) => {
                 server.send(
@@ -40,7 +40,7 @@ impl ConnectionlessPacketResponder for StatusResponder {
                         let supported = self.supported_extensions.contains(name);
                         Packet::StatusResponse(StatusResponse::ExtensionResponse{name: name.clone(), supported: supported})
                     }
-                }, ip, port);
+                }, address);
                 true
             },
             _ => false
@@ -48,11 +48,11 @@ impl ConnectionlessPacketResponder for StatusResponder {
     }
 }
 
-responder_test!(test_status_responder, |server: &mut TestServer, connection: &Connection, ip: net::IpAddr| {
+responder_test!(test_status_responder, |server: &mut TestServer, connection: &Connection, address: net::SocketAddr| {
     let mut responder = StatusResponder::new(true, "1.0", &["test_atest"]);
-    responder.handle_incoming_packet_connectionless(&Packet::StatusRequest(StatusRequest::FastnetQuery), ip, 0, server);
-    responder.handle_incoming_packet_connectionless(&Packet::StatusRequest(StatusRequest::VersionQuery), ip, 0, server);
-    responder.handle_incoming_packet_connectionless(&Packet::StatusRequest(StatusRequest::ExtensionQuery("test_atest".to_string())), ip, 0, server);
+    responder.handle_incoming_packet_connectionless(&Packet::StatusRequest(StatusRequest::FastnetQuery), address, server);
+    responder.handle_incoming_packet_connectionless(&Packet::StatusRequest(StatusRequest::VersionQuery), address, server);
+    responder.handle_incoming_packet_connectionless(&Packet::StatusRequest(StatusRequest::ExtensionQuery("test_atest".to_string())), address, server);
 },
 Packet::StatusResponse(StatusResponse::FastnetResponse(true)),
 Packet::StatusResponse(StatusResponse::VersionResponse("1.0".to_string())),
