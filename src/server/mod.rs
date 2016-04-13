@@ -4,7 +4,6 @@ use std::net;
 
 mod test_server;
 mod mio_server;
-mod internal_server;
 
 pub use self::test_server::*;
 pub use self::mio_server::*;
