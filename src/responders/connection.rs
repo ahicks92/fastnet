@@ -29,7 +29,7 @@ impl ConnectionlessPacketResponder for ConnectionResponder {
     }
 }
 
-responder_test!(test_connection_responder, |server: &mut TestServer, connection: &Connection, address: net::SocketAddr| {
+responder_test!(test_connection_responder, |server: &mut TestServer, connection: &mut ConnectionState, address: net::SocketAddr| {
     let mut handler = ConnectionResponder::new();
     handler.handle_incoming_packet_connectionless(&packets::Packet::Connect, address, server);
     assert_eq!(server.established_connections.len(), 1);

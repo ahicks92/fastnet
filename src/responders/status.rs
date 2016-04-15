@@ -48,7 +48,7 @@ impl ConnectionlessPacketResponder for StatusResponder {
     }
 }
 
-responder_test!(test_status_responder, |server: &mut TestServer, connection: &Connection, address: net::SocketAddr| {
+responder_test!(test_status_responder, |server: &mut TestServer, connection: &mut ConnectionState, address: net::SocketAddr| {
     let mut responder = StatusResponder::new(true, "1.0", &["test_atest"]);
     responder.handle_incoming_packet_connectionless(&Packet::StatusRequest(StatusRequest::FastnetQuery), address, server);
     responder.handle_incoming_packet_connectionless(&Packet::StatusRequest(StatusRequest::VersionQuery), address, server);
