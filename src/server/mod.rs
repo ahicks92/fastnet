@@ -28,8 +28,8 @@ impl Connection {
 }
 
 pub trait Server {
-    //Send a packet.
-    fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr);
+    //Send a packet. Returns false if we didn't actually send it.
+    fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr)->bool;
     //Upgrade an ip address/port pair to a connection.
     fn make_connection(&mut self, address: net::SocketAddr)->Result<u32, String>;
 }

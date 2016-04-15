@@ -1,6 +1,7 @@
 use super::*;
-use super::super::packets;
-use crc;
+use super::super::packets::{self, Encodable, Decodable};
+use crc::crc32;
+use byteorder::{self, BigEndian, ByteOrder};
 use std::collections;
 use std::net;
 use mio;
@@ -40,7 +41,17 @@ impl<'a> MioHandler<'a> {
 }
 
 impl<'a> Server for MioHandler<'a> {
-    fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr) {
+    fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr)->bool {
+        if let Ok(size) = packets::encode_packet(packet, &mut self.outgoing_packet_buffer[4..]) {
+            let checksum = crc32::checksum_castagnoli(&self.outgoing_packet_buffer[4..size]);
+            BigEndian::write_u32(&mut self.outgoing_packet_buffer[..4], checksum);
+            if let Ok(Some(sent_bytes)) = self.socket.send_to(&self.outgoing_packet_buffer[..4+size], &address) {
+                if sent_bytes == 4+size {return true;}
+                else {return false;}
+            }
+            else {return false;}
+        }
+        else {return false;};
     }
 
     fn make_connection(&mut self, address: net::SocketAddr)->Result<u32, String> {

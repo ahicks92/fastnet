@@ -17,8 +17,9 @@ impl TestServer {
 }
 
 impl Server for TestServer {
-    fn send(&mut self, packet: &Packet, address: net::SocketAddr) {
+    fn send(&mut self, packet: &Packet, address: net::SocketAddr)->bool {
         self.sent_packets.push((address, packet.clone()));
+        true
     }
 
     fn make_connection(&mut self, address: net::SocketAddr)->Result<u32, String> {

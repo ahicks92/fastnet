@@ -220,3 +220,8 @@ impl Encodable for String {
         encode_string_slice(self.as_bytes(), destination)
     }
 }
+
+pub fn encode_packet(packet: &Packet, buffer: &mut [u8])->Result<usize, PacketEncodingError> {
+    let mut writer = PacketWriter::new(buffer);
+    packet.encode(&mut writer).map(|_| writer.written())
+}
