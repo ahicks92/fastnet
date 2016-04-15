@@ -210,3 +210,8 @@ impl Decodable for String {
         }
     }
 }
+
+pub fn decode_packet(buffer: &[u8])->Result<Packet, PacketDecodingError> {
+    let mut reader = PacketReader::new(&buffer);
+    Packet::decode(&mut reader)
+}

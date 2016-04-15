@@ -34,9 +34,15 @@ impl<'a> MioHandler<'a> {
     }
 
     fn got_packet(&mut self, size: usize, address: net::SocketAddr) {
-        if size == 0 {return};
+        if size == 0 {return;}
         let slice = &self.incoming_packet_buffer[0..size];
-        //Todo: finish.
+        let computed_checksum = crc32::checksum_castagnoli(&slice[4..]);
+        let expected_checksum = BigEndian::read_u32(&slice[..4]);
+        if computed_checksum != expected_checksum {return;}
+        let maybe_packet = packets::decode_packet(&slice[4..]);
+        if let Err(_) = maybe_packet {return;}
+        let packet = maybe_packet.unwrap();
+        //todo: handler logic.
     }
 }
 
