@@ -4,10 +4,10 @@ use super::super::packets;
 use std::net;
 
 #[derive(Debug, Default)]
-struct ConnectionResponder;
+pub struct ConnectionResponder;
 
 impl ConnectionResponder {
-    fn new()->ConnectionResponder {
+    pub fn new()->ConnectionResponder {
         ConnectionResponder::default()
     }
 }

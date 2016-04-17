@@ -26,4 +26,9 @@ impl Connection {
             echo_responder: responders::EchoResponder::new(),
         }
     }
+
+    pub fn handle_incoming_packet<T: Server>(&mut self, packet: &packets::Packet, server: &mut T)->bool {
+        self.heartbeat_responder.handle_incoming_packet(packet, &mut self.state, server)
+        || self.echo_responder.handle_incoming_packet(packet, &mut self.state, server)
+    }
 }

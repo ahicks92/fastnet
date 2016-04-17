@@ -1,5 +1,6 @@
 use super::*;
 use super::super::packets::{self, Encodable, Decodable};
+use super::super::responders;
 use crc::crc32;
 use byteorder::{self, BigEndian, ByteOrder};
 use std::collections;
@@ -9,44 +10,55 @@ use mio::udp;
 
 const SOCKET_TOKEN: mio::Token = mio::Token(0);
 
-//The actual server consists of this, the event loop, and the socket.
-//The struct is later in this file.
-pub struct MioHandler<'a> {
-    outgoing_packets: collections::VecDeque<packets::Packet>,
-    connections: collections::HashMap<net::SocketAddr, Connection>,
-    next_connection_id: u32, //TODO: a counter is not sufficient for long-running programs.
-
+pub struct MioHandlerState<'a> {
     socket: &'a udp::UdpSocket,
     incoming_packet_buffer: [u8; 1000],
     outgoing_packet_buffer: [u8; 1000],
+    next_connection_id: u32,
+}
+
+pub struct MioHandler<'a> {
+    state: MioHandlerState<'a>,
+    connections: collections::HashMap<net::SocketAddr, Connection>,
+    status_responder: responders::StatusResponder,
+    connection_responder: responders::ConnectionResponder,
 }
 
 impl<'a> MioHandler<'a> {
     pub fn new(socket: &'a udp::UdpSocket)->MioHandler<'a> {
         MioHandler {
+            state: MioHandlerState {
+                socket: socket,
+                incoming_packet_buffer: [0u8; 1000],
+                outgoing_packet_buffer: [0u8; 1000],
+                next_connection_id: 0,
+            },
             connections: collections::HashMap::new(),
-            outgoing_packets: collections::VecDeque::with_capacity(100),
-            next_connection_id: 0,
-            socket: socket,
-            incoming_packet_buffer: [0u8; 1000],
-            outgoing_packet_buffer: [0u8; 1000],
+            status_responder: responders::StatusResponder::new(true, packets::PROTOCOL_VERSION, &[""; 0]),
+            connection_responder: responders::ConnectionResponder::new(),
         }
     }
 
     fn got_packet(&mut self, size: usize, address: net::SocketAddr) {
         if size == 0 {return;}
-        let slice = &self.incoming_packet_buffer[0..size];
-        let computed_checksum = crc32::checksum_castagnoli(&slice[4..]);
-        let expected_checksum = BigEndian::read_u32(&slice[..4]);
-        if computed_checksum != expected_checksum {return;}
-        let maybe_packet = packets::decode_packet(&slice[4..]);
+        let maybe_packet = {
+            let slice = &self.state.incoming_packet_buffer[0..size];
+            let computed_checksum = crc32::checksum_castagnoli(&slice[4..]);
+            let expected_checksum = BigEndian::read_u32(&slice[..4]);
+            if computed_checksum != expected_checksum {Err(packets::PacketDecodingError::Invalid)}
+            else {packets::decode_packet(&slice[4..])}
+        };
         if let Err(_) = maybe_packet {return;}
         let packet = maybe_packet.unwrap();
-        //todo: handler logic.
+        if let Some(ref mut conn) = self.connections.get_mut(&address) {
+            if conn.handle_incoming_packet(&packet, &mut self.state) {return;}
+        }
+        self.status_responder.handle_incoming_packet_connectionless(&packet, address, &mut self.state)
+        || self.connection_responder.handle_incoming_packet_connectionless(&packet, address, &mut self.state);
     }
 }
 
-impl<'a> Server for MioHandler<'a> {
+impl<'a> Server for MioHandlerState<'a> {
     fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr)->bool {
         if let Ok(size) = packets::encode_packet(packet, &mut self.outgoing_packet_buffer[4..]) {
             let checksum = crc32::checksum_castagnoli(&self.outgoing_packet_buffer[4..size]);
@@ -79,7 +91,7 @@ impl<'a> mio::Handler for MioHandler<'a> {
             //We need to do something sensible here, probably a callback with whatever state we can get.
         }
         if events.is_readable() {
-            let result = self.socket.recv_from(&mut self.incoming_packet_buffer);
+            let result = self.state.socket.recv_from(&mut self.state.incoming_packet_buffer);
             if let Ok(Some((size, address))) = result {
                 self.got_packet(size, address);
             }
