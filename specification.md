@@ -220,9 +220,9 @@ A heartbeat is composed of three pieces of information:
 
 - A 64-bit integer specifying how many packets this end of the connection has received from the other end of the connection.
 
-Both parties involved in a Fastnet connection must send a heartbeat every 100 MS.
+Both parties involved in a fastnet connection must send a heartbeat to each other  once a second.
 
-A connection is considered disconnected if a heartbeat does not arrive for a user-specified timeout.  The default for this timeout shall be 1 second.
+If either end of a fastnet connection does not receive any packets from the other end of the connection for a timeout period  then it must consider the connection broken.  This period must be configurable by the user and should default to 10 seconds.  This period must not go below 2 seconds.
 
 ##The Echo Channel##
 
