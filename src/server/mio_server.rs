@@ -5,10 +5,17 @@ use crc::crc32;
 use byteorder::{self, BigEndian, ByteOrder};
 use std::collections;
 use std::net;
+use std::thread;
+use std::io;
+use std::sync::mpsc;
 use mio;
 use mio::udp;
 
 const SOCKET_TOKEN: mio::Token = mio::Token(0);
+
+pub enum MioHandlerCommand {
+    DoCall(Box<fn(&mut MioHandler)>),
+}
 
 pub struct MioHandlerState<'a> {
     socket: &'a udp::UdpSocket,
@@ -84,7 +91,7 @@ impl<'a> PacketSender for MioHandlerState<'a> {
 
 impl<'a> mio::Handler for MioHandler<'a> {
     type Timeout = ();
-    type Message = ();
+    type Message = MioHandlerCommand;
 
     fn ready(&mut self, event_loop: &mut mio::EventLoop<Self>, token: mio::Token, events: mio::EventSet) {
         //We only have one socket, so can avoid the match on the token.
@@ -97,5 +104,52 @@ impl<'a> mio::Handler for MioHandler<'a> {
                 self.got_packet(size, address);
             }
         }
+    }
+}
+
+fn mio_server_thread(address: net::SocketAddr, notify_created: mpsc::Sender<Result<mio::Sender<MioHandlerCommand>, io::Error>>) {
+    let maybe_socket = match address {
+        net::SocketAddr::V4(_) => udp::UdpSocket::v4(),
+        net::SocketAddr::V6(_) => udp::UdpSocket::v6()
+    };
+    if let Err(what) = maybe_socket {
+        notify_created.send(Err(what)).unwrap();
+        return;
+    }
+    let socket = maybe_socket.unwrap();
+    if let  Err(what) = socket.bind(&address) {
+        notify_created.send(Err(what)).unwrap();
+        return;
+    }
+    let maybe_loop  = mio::EventLoop::new();
+    if let Err(what) = maybe_loop {
+        notify_created.send(Err(what)).unwrap();
+        return;
+    }
+    let mut event_loop = maybe_loop.unwrap();
+    let mut handler = MioHandler::new(&socket);
+    if let Err(what)  = event_loop.register(&socket, SOCKET_TOKEN, mio::EventSet::all(), mio::PollOpt::all()) {
+        notify_created.send(Err(what)).unwrap();
+        return;
+    }
+    let sender = event_loop.channel();
+    notify_created.send(Ok(sender));
+    event_loop.run(&mut handler);
+}
+
+pub struct MioServer {
+    thread: thread::JoinHandle<()>,
+    sender: mio::Sender<MioHandlerCommand>,
+}
+
+impl MioServer {
+    fn new(address: net::SocketAddr)->Result<MioServer, io::Error> {
+        let (sender, receiver) = mpsc::channel();
+        let join_handle = thread::spawn(move || mio_server_thread(address, sender));
+        let message_sender = try!(receiver.recv().unwrap());
+        Ok(MioServer {
+            thread: join_handle,
+            sender: message_sender,
+        })
     }
 }
