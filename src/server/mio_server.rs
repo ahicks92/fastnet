@@ -14,14 +14,13 @@ pub struct MioHandlerState<'a> {
     socket: &'a udp::UdpSocket,
     incoming_packet_buffer: [u8; 1000],
     outgoing_packet_buffer: [u8; 1000],
-    next_connection_id: u32,
 }
 
 pub struct MioHandler<'a> {
     state: MioHandlerState<'a>,
     connections: collections::HashMap<net::SocketAddr, Connection>,
+    next_connection_id: u32,
     status_responder: responders::StatusResponder,
-    connection_responder: responders::ConnectionResponder,
 }
 
 impl<'a> MioHandler<'a> {
@@ -31,11 +30,10 @@ impl<'a> MioHandler<'a> {
                 socket: socket,
                 incoming_packet_buffer: [0u8; 1000],
                 outgoing_packet_buffer: [0u8; 1000],
-                next_connection_id: 0,
             },
             connections: collections::HashMap::new(),
+            next_connection_id: 0,
             status_responder: responders::StatusResponder::new(true, packets::PROTOCOL_VERSION, &[""; 0]),
-            connection_responder: responders::ConnectionResponder::new(),
         }
     }
 
@@ -53,12 +51,11 @@ impl<'a> MioHandler<'a> {
         if let Some(ref mut conn) = self.connections.get_mut(&address) {
             if conn.handle_incoming_packet(&packet, &mut self.state) {return;}
         }
-        self.status_responder.handle_incoming_packet_connectionless(&packet, address, &mut self.state)
-        || self.connection_responder.handle_incoming_packet_connectionless(&packet, address, &mut self.state);
+        self.status_responder.handle_incoming_packet_connectionless(&packet, address, &mut self.state);
     }
 }
 
-impl<'a> Server for MioHandlerState<'a> {
+impl<'a> PacketSender for MioHandlerState<'a> {
     fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr)->bool {
         if let Ok(size) = packets::encode_packet(packet, &mut self.outgoing_packet_buffer[4..]) {
             let checksum = crc32::checksum_castagnoli(&self.outgoing_packet_buffer[4..size]);
@@ -70,14 +67,6 @@ impl<'a> Server for MioHandlerState<'a> {
             else {return false;}
         }
         else {return false;};
-    }
-
-    fn make_connection(&mut self, address: net::SocketAddr)->Result<u32, String> {
-        let id = self.next_connection_id;
-        self.next_connection_id += 1;
-        let conn = Connection::new(id, address);
-        self.connections.insert(address, conn);
-        Ok(id)
     }
 }
 

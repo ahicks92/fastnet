@@ -24,15 +24,10 @@ macro_rules! responder_test {
     }
 }
 
-mod connection;
 mod echo;
 mod heartbeat;
 mod status;
 
-//We have significanty less tests than the packets module.
-//Consequently, they're in with the types they test.
-
-pub use self::connection::*;
 pub use self::echo::*;
 pub use self::heartbeat::*;
 pub use self::status::*;

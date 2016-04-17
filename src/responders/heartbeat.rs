@@ -14,7 +14,7 @@ impl HeartbeatResponder {
 }
 
 impl ConnectedPacketResponder for HeartbeatResponder {
-    fn handle_incoming_packet<T: Server>(&mut self, packet: &packets::Packet, connection: &mut ConnectionState, server: &mut T)->bool {
+    fn handle_incoming_packet<T: PacketSender>(&mut self, packet: &packets::Packet, connection: &mut ConnectionState, server: &mut T)->bool {
         //For now, do nothing but swallow the heartbeat.
         if let packets::Packet::Heartbeat{counter: c, sent: s, received: r} = *packet {true}
         else {false}

@@ -13,7 +13,7 @@ impl EchoResponder {
 }
 
 impl ConnectedPacketResponder for EchoResponder {
-    fn handle_incoming_packet<T: Server>(&mut self, packet: &Packet, connection: &mut ConnectionState, server: &mut T)->bool {
+    fn handle_incoming_packet<T: PacketSender>(&mut self, packet: &Packet, connection: &mut ConnectionState, server: &mut T)->bool {
         match *packet {
             Packet::Echo(id) => {
                 server.send(packet, connection.address);

@@ -29,7 +29,7 @@ impl StatusResponder {
 }
 
 impl ConnectionlessPacketResponder for StatusResponder {
-    fn handle_incoming_packet_connectionless<T: Server>(&mut self, packet: &Packet, address: net::SocketAddr, server: &mut T)->bool {
+    fn handle_incoming_packet_connectionless<T: PacketSender>(&mut self, packet: &Packet, address: net::SocketAddr, server: &mut T)->bool {
         match *packet {
             Packet::StatusRequest(ref req) => {
                 server.send(
