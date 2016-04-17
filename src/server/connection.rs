@@ -4,7 +4,7 @@ use std::net;
 
 #[derive(Debug)]
 pub struct ConnectionState {
-    pub id: u32,
+    pub id: u64,
     pub address: net::SocketAddr,
 }
 
@@ -16,7 +16,7 @@ pub struct Connection {
 }
 
 impl Connection {
-    pub fn new(id: u32, address: net::SocketAddr)->Connection {
+    pub fn new(id: u64, address: net::SocketAddr)->Connection {
         Connection {
             state: ConnectionState {
                 id: id,

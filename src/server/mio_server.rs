@@ -51,7 +51,19 @@ impl<'a> MioHandler<'a> {
         if let Some(ref mut conn) = self.connections.get_mut(&address) {
             if conn.handle_incoming_packet(&packet, &mut self.state) {return;}
         }
-        self.status_responder.handle_incoming_packet_connectionless(&packet, address, &mut self.state);
+        if self.status_responder.handle_incoming_packet_connectionless(&packet, address, &mut self.state) {return;}
+        //if we get here, it's a special case.
+        match packet {
+            packets::Packet::Connect => {
+                if let Some(_) = self.connections.get(&address) {return;}
+                let id = self.next_connection_id;
+                self.next_connection_id += 1;
+                let conn = Connection::new(id, address);
+                self.connections.insert(address, conn);
+                self.state.send(&packets::Packet::Connected(id), address);
+            },
+            _ => {}
+        }
     }
 }
 
