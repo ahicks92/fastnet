@@ -89,7 +89,7 @@ encoder_test!(test_encode_connect_packet,
 Packet::Connect);
 
 encoder_test!(test_encode_connected_packet,
-[255, 255, 3, 0, 0, 0, 5], //Connected, id is 5.
+[255, 255, 3, 0, 0, 0, 0, 0, 0, 0, 5], //Connected, id is 5.
 Packet::Connected(5));
 
 encoder_test!(test_encode_aborted_packet,

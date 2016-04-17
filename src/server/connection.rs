@@ -10,7 +10,7 @@ pub struct ConnectionState {
 
 #[derive(Debug)]
 pub struct Connection {
-    state: ConnectionState,
+    pub state: ConnectionState,
     pub heartbeat_responder: responders::HeartbeatResponder,
     pub echo_responder: responders::EchoResponder,
 }

@@ -109,7 +109,7 @@ decoder_test!(test_decode_connect_packet, Packet,
 Packet::Connect);
 
 decoder_test!(test_decode_connected_packet, Packet,
-[255u8, 255, 3, 0, 0, 0, 5],
+[255u8, 255, 3, 0, 0, 0, 0, 0, 0, 0, 5],
 Packet::Connected(5));
 
 decoder_test!(test_decode_aborted_packet, Packet,
