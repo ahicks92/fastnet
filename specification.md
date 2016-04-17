@@ -106,10 +106,8 @@ A fastnet packet consists of:
 
 - The payload of the packet.
 
-
 Channels 0 to 32767 must be reserved for the application and are referred to as message channels.
 All other channels must be reserved for Fastnet's protocol and used as specified here.
-
 
 An implementation must prevent the user from using negative channel numbers for any purpose.
 
@@ -161,7 +159,7 @@ packets:
 
 ```
 connect = -1:i16 2:u8
-connected = -1:i16 3:u8 connection_identifier:u32
+connected = -1:i16 3:u8 connection_identifier:u64
 aborted = -1:i16 4:u8 error:s
 ```
 

@@ -58,7 +58,7 @@ impl Decodable for Packet {
                     STATUS_REQUEST_SPECIFIER => {return Ok(StatusRequest(try!(super::StatusRequest::decode(source))));},
                     STATUS_RESPONSE_SPECIFIER => {return Ok(StatusResponse(try!(super::StatusResponse::decode(source))));},
                     CONNECT_SPECIFIER => {return Ok(Connect);},
-                    CONNECTED_SPECIFIER => {return Ok(Connected(try!(u32::decode(source))));},
+                    CONNECTED_SPECIFIER => {return Ok(Connected(try!(u64::decode(source))));},
                     ABORTED_SPECIFIER => {return Ok(Aborted(try!(String::decode(source))));},
                     _ => {return Err(Invalid);},
                 }

@@ -19,7 +19,7 @@ pub struct MioHandlerState<'a> {
 pub struct MioHandler<'a> {
     state: MioHandlerState<'a>,
     connections: collections::HashMap<net::SocketAddr, Connection>,
-    next_connection_id: u32,
+    next_connection_id: u64,
     status_responder: responders::StatusResponder,
 }
 
