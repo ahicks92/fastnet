@@ -6,6 +6,5 @@ extern crate crc;
 
 
 mod packets;
-mod responders;
 mod server;
-
+mod status_translator;
