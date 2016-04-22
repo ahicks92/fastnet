@@ -1,39 +1,24 @@
-use packets::*;
+use packets;
 use std::collections;
 use std::iter::{self, Iterator, IntoIterator};
 use std::net;
 use std::convert;
 
-pub struct StatusTranslator {
-    listening: bool,
-    version: String,
-    supported_extensions: collections::HashSet<String>,
-}
+static PROTOCOL_VERSION: &'static str = "1.0";
+static SUPPORTED_EXTENSIONS: &'static [&'static str] = &[];
 
-impl StatusTranslator {
-    pub fn new<T>(listening: bool, version: &str, supported_extensions: &[T])->StatusTranslator
-    where T: convert::Into<String>+Clone,
-    {
-        let mut set = collections::HashSet::<String>::new();
-        for i in supported_extensions.into_iter() {
-            set.insert(i.clone().into());
-        }
-        StatusTranslator {
-            listening: listening,
-            version: version.to_string(),
-            supported_extensions: set,
-        }
-    }
-
-
-    pub fn translate(&self, request: &StatusRequest)->StatusResponse {
-        match *request {
-            StatusRequest::FastnetQuery => StatusResponse::FastnetResponse(self.listening),
-            StatusRequest::VersionQuery => StatusResponse::VersionResponse(self.version.clone()),
-            StatusRequest::ExtensionQuery(ref name) => {
-                let supported = self.supported_extensions.contains(name);
-                StatusResponse::ExtensionResponse{name: name.clone(), supported: supported}
+pub fn translate(request: &packets::StatusRequest)->packets::StatusResponse {
+    match *request {
+        packets::StatusRequest::FastnetQuery => packets::StatusResponse::FastnetResponse(true),
+        packets::StatusRequest::VersionQuery => packets::StatusResponse::VersionResponse(PROTOCOL_VERSION.to_string()),
+        packets::StatusRequest::ExtensionQuery(ref name) => {
+            let mut supported = false;
+            for i in SUPPORTED_EXTENSIONS {
+                if i.eq(&name) {
+                    supported = true;
+                }
             }
+            packets::StatusResponse::ExtensionResponse{name: name.clone(), supported: supported}
         }
     }
 }

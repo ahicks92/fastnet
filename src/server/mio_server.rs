@@ -35,7 +35,6 @@ pub struct MioHandler<'a> {
     socket_state: MioSocketState<'a>,
     connections: collections::HashMap<net::SocketAddr, Connection>,
     next_connection_id: u64,
-    status_translator: status_translator::StatusTranslator,
 }
 
 impl<'a> MioHandler<'a> {
@@ -48,7 +47,6 @@ impl<'a> MioHandler<'a> {
             },
             connections: collections::HashMap::new(),
             next_connection_id: 1,
-            status_translator: status_translator::StatusTranslator::new(true, packets::PROTOCOL_VERSION, &[""; 0]),
         }
     }
 
@@ -76,7 +74,7 @@ impl<'a> MioHandler<'a> {
                 self.socket_state.send(&packets::Packet::Connected(id), address);
             },
             packets::Packet::StatusRequest(ref req) => {
-                self.socket_state.send(&packets::Packet::StatusResponse(self.status_translator.translate(req)), address);
+                self.socket_state.send(&packets::Packet::StatusResponse(status_translator::translate(req)), address);
             },
             _ => {}
         }

@@ -40,7 +40,6 @@ pub enum StatusResponse {
     ExtensionResponse {name: String, supported: bool},
 }
 
-pub const PROTOCOL_VERSION: &'static str = "1.0";
 pub const CONNECTION_CHANNEL: i16 = -1;
 pub const HEARTBEAT_CHANNEL: i16 = -2;
 pub const ECHO_CHANNEL: i16 = -3;
