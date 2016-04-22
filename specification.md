@@ -1,4 +1,4 @@
-#Fastnet 1.0 Protocol Specification
+Fastnet 1.0 Protocol Specification
 
 ##Introduction and Goals
 
@@ -171,9 +171,9 @@ The following must always take place on channel -1 before a connection is consid
 
 To begin a connection, a client must:
 
-- Use the `fastnet_query` from the status query section to determine if a fastnet implementation is listening.
+- Use the `fastnet_query` from the status query section to determine if a fastnet implementation is listening.  An implementation must make no more than 10 attempts before aborting.
 
-- Use the `version_query` to determine that the implementations are compatible.
+- Use the `version_query` to determine that the implementations are compatible.  Again, an implementation must make no more than 10 attempts before aborting.
 
 - Send the connect packet.
 

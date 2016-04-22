@@ -2,10 +2,10 @@ use super::*;
 use super::super::packets::{self, Packet};
 use std::net;
 
+
 #[derive(Debug, Copy, Clone)]
 pub enum ConnectionState {
-    Initialized,
-    Establishing,
+    Establishing{listening: bool, compatible_version: bool, attempts: u32},
     Established,
     Closed,
 }
@@ -21,20 +21,16 @@ pub struct Connection {
     pub heartbeat_counter: u64,
 }
 
+const MAX_STATUS_ATTEMPTS: u32 = 10;
+const MAX_CONNECTION_ATTEMPTS:u32 = 25; //5000 ms divided by 200 ms per attempt, see spec.
+
 impl Connection {
+
     pub fn new(address: net::SocketAddr, local_id: u64)->Connection {
-        Connection::with_remote_id(address, local_id, 0)
-    }
-
-    pub fn with_remote_id(address: net::SocketAddr, local_id: u64, remote_id: u64)->Connection {
-        Connection::with_remote_id_and_state(address, local_id, remote_id, ConnectionState::Initialized)
-    }
-
-    fn with_remote_id_and_state(address: net::SocketAddr, local_id: u64, remote_id: u64, state: ConnectionState)->Connection {
         Connection {
-            state: state,
+            state: ConnectionState::Closed,
             local_id: local_id,
-            remote_id: remote_id,
+            remote_id: 0,
             address: address,
             sent_packets: 0,
             received_packets: 0,
@@ -67,5 +63,32 @@ impl Connection {
     }
 
     pub fn tick200<T: PacketSender>(&mut self, sender: &mut T) {
+        match self.state {
+            ConnectionState::Establishing{mut attempts, listening, compatible_version} => {
+                attempts += 1;
+                if listening == false {
+                    if attempts > MAX_STATUS_ATTEMPTS {
+                        self.state = ConnectionState::Closed;
+                        return;
+                    }
+                    sender.send(&packets::Packet::StatusRequest(packets::StatusRequest::FastnetQuery), self.address);
+                }
+                else if compatible_version == false {
+                    if attempts > MAX_STATUS_ATTEMPTS {
+                        self.state = ConnectionState::Closed;
+                        return;
+                    }
+                    sender.send(&packets::Packet::StatusRequest(packets::StatusRequest::VersionQuery), self.address);
+                }
+                else {
+                    if attempts > MAX_CONNECTION_ATTEMPTS {
+                        self.state = ConnectionState::Closed;
+                        return;
+                    }
+                    sender.send(&packets::Packet::Connect, self.address);
+                }
+            },
+            _ => {},
+        }
     }
 }
