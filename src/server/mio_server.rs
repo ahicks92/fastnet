@@ -65,7 +65,7 @@ impl<'a> MioHandler<'a> {
                 if let Some(_) = self.connections.get(&address) {return;}
                 let id = self.next_connection_id;
                 self.next_connection_id += 1;
-                let conn = Connection::new(id, address);
+                let conn = Connection::new(address, id);
                 self.connections.insert(address, conn);
                 self.socket_state.send(&packets::Packet::Connected(id), address);
             },
