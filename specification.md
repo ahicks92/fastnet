@@ -224,6 +224,8 @@ If either end of a fastnet connection does not receive any packets from the othe
 
 Heartbeat packet counts do not include any packets exchanged before the establishment of a connection.
 
+An implementation must not place any semantinc meaning on anything in the heartbeat beyond using it for rough packet loss estimation.
+
 ##The Echo Channel##
 
 Packet format:
