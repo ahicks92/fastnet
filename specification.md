@@ -187,16 +187,16 @@ If the client receives the aborted packet, it must report the error string to th
 if the client times out before receiving either the connected or aborted packet, the implementation must report an implementation-defined error.
 
 When the server sees the connect packet, it begins establishing a connection.
-To establish a connection, a server must generate an unsigned 32-bit integer ID.
+To establish a connection, a server must generate an unsigned 64-bit integer ID.
 This ID must be unique among all currently-established connections to said server.
 It must then encode and send the connected packet and immediately notify the application that a connection was established.
 If the server continues to receive the connection request packet, it must continue to respond with the connected packet but do nothing further; it is possible for the client to not yet know that it is connected due to packet loss.
 
+This specification reserves ID 0 for "no ID".  A server must never use an ID of 0 for a connection.  This enables implementations to use ID 0 for internal purposes, though no other meaning is assigned to it by this specification.
+
 To refuse a connection, a server must send the aborted packet with an implementation-defined string as to the reason.
 This string must not be empty.
 This specification suggests "unspecified error" as a reasonable default for situations in which a string is not available, i.e. because a game does not wish to advertise that a player has been banned.
-
-Both clients and servers must expose the Fastnet connection ID for a connection in a manner that can be reached by the application developer; this ID is part of the UDP hole-punching algorithm as well as a crutial piece of information for many extensions.
 
 Servers must ignore any packets not involved in an active connection.
 
