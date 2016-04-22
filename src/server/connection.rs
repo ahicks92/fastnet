@@ -18,6 +18,7 @@ pub struct Connection {
     pub address: net::SocketAddr,
     pub received_packets: u64,
     pub sent_packets: u64,
+    pub heartbeat_counter: u64,
 }
 
 impl Connection {
@@ -37,6 +38,7 @@ impl Connection {
             address: address,
             sent_packets: 0,
             received_packets: 0,
+            heartbeat_counter: 0,
         }
     }
 
@@ -60,5 +62,7 @@ impl Connection {
     }
 
     pub fn heartbeat<T: PacketSender>(&mut self, sender: &mut T) {
+        let heartbeat = packets::Packet::Heartbeat{counter: self.heartbeat_counter, sent: self.sent_packets, received: self.received_packets};
+        self.send(&heartbeat, sender);
     }
 }
