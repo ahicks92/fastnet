@@ -16,6 +16,8 @@ pub struct Connection {
     pub local_id: u64,
     pub remote_id: u64,
     pub address: net::SocketAddr,
+    pub received_packets: u64,
+    pub sent_packets: u64,
 }
 
 impl Connection {
@@ -33,13 +35,21 @@ impl Connection {
             local_id: local_id,
             remote_id: remote_id,
             address: address,
+            sent_packets: 0,
+            received_packets: 0,
         }
     }
 
+    pub fn send<T: PacketSender>(&mut self, packet: &packets::Packet, sender: &mut T)->bool {
+        self.sent_packets += 1;
+        sender.send(packet, self.address)
+    }
+
     pub fn handle_incoming_packet<T: PacketSender>(&mut self, packet: &packets::Packet, sender: &mut T)->bool {
+        self.received_packets += 1; //Always.
         match *packet {
             Packet::Echo(id) => {
-                sender.send(packet, self.address);
+                self.send(packet, sender);
                 true
             },
             Packet::Heartbeat{counter: c, sent: s, received: r} => {
