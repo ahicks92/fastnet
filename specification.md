@@ -146,7 +146,7 @@ Unless otherwise noted, the result of a query should never change.
 
 - 0 is a query to determine if Fastnet is listening on a specified port.  Return `false` for no, `true` for yes.  An implementation shall assume that there is no server listening if this query is consistently not responded to.  An implementation shall send this query no more than ten times.  An implementation functioning only as a client should respond with `false` but is permitted not to respond at all.
 
-- 1 is the version query.  The version response must contain a version string in the form `major.minor`.  The current version is "1.0".  Incrementing the minor component indicates a backwards compatible change.  Incrementing the major component indicates a backwards-incompatible change.
+- 1 is the version query.  The version response must contain a version string in the form `major.minor`.  The current version is "1.0".  Two implementations must be compatible if they have the same version number.  It is anticipated that implementations will be considered compatible if they have the same major version number, but this specification avoids mandating it for now.
 
 - 2 is the extension supported query.  Extension names should be of the form `vendorname_extensionname` and stored in lower case.  This specification reserves the prefix `fastnet_` for use by this specification.
 
