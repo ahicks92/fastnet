@@ -41,7 +41,7 @@ impl<'a> MioHandler<'a> {
                 outgoing_packet_buffer: [0u8; 1000],
             },
             connections: collections::HashMap::new(),
-            next_connection_id: 0,
+            next_connection_id: 1,
             status_translator: status_translator::StatusTranslator::new(true, packets::PROTOCOL_VERSION, &[""; 0]),
         }
     }
