@@ -12,8 +12,12 @@ use mio;
 use mio::udp;
 
 const SOCKET_TOKEN: mio::Token = mio::Token(0);
-const TIMEOUT1000: u32 = 1; //happens every second.
-const TIMEOUT200: u32 = 2; //Happens every 200 MS.
+
+#[derive(Debug, Copy, Clone)]
+pub enum TimeoutTypes {
+    Timeout1000,
+    Timeout200,
+}
 
 pub enum MioHandlerCommand {
     DoCall(Box<fn(&mut MioHandler)>),
@@ -95,7 +99,7 @@ impl<'a> PacketSender for MioSocketState<'a> {
 }
 
 impl<'a> mio::Handler for MioHandler<'a> {
-    type Timeout = u32;
+    type Timeout = TimeoutTypes;
     type Message = MioHandlerCommand;
 
     fn ready(&mut self, event_loop: &mut mio::EventLoop<Self>, token: mio::Token, events: mio::EventSet) {
@@ -115,15 +119,14 @@ impl<'a> mio::Handler for MioHandler<'a> {
         //Rust isn't smart enough to realize that closures only borrow a field, so we pull it out here to satisfy the borrow checker.
         let sender = &mut self.socket_state;
         let rereg = match timeout {
-            TIMEOUT200 => {
+            TimeoutTypes::Timeout200 => {
                 self.connections.iter_mut().map(|x| x.1.tick200(sender));
                 200
             },
-            TIMEOUT1000 => {
+            TimeoutTypes::Timeout1000 => {
                 self.connections.iter_mut().map(|x| x.1.tick1000(sender));
                 1000
             },
-            _ => panic!("Unrecognized timeout. This should never happen.")
         };
         event_loop.timeout_ms(timeout, rereg).unwrap();
     }
@@ -155,11 +158,11 @@ fn mio_server_thread(address: net::SocketAddr, notify_created: mpsc::Sender<Resu
         return;
     }
     let timer_error = Err(io::Error::new(io::ErrorKind::Other, "Couldn't create the timer."));
-    if let Err(_) = event_loop.timeout_ms(TIMEOUT1000, 1000) {
+    if let Err(_) = event_loop.timeout_ms(TimeoutTypes::Timeout1000, 1000) {
         notify_created.send(timer_error).unwrap();
         return;
     }
-    if let Err(_) = event_loop.timeout_ms(TIMEOUT200, 200) {
+    if let Err(_) = event_loop.timeout_ms(TimeoutTypes::Timeout200, 200) {
         notify_created.send(timer_error);
         return;
     }
