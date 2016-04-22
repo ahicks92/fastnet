@@ -48,4 +48,7 @@ impl Connection {
             _ => false
         }
     }
+
+    pub fn heartbeat<T: PacketSender>(&mut self, sender: &mut T) {
+    }
 }

@@ -12,6 +12,7 @@ use mio;
 use mio::udp;
 
 const SOCKET_TOKEN: mio::Token = mio::Token(0);
+const HEARTBEAT_TIMEOUT: u32 = 1;
 
 pub enum MioHandlerCommand {
     DoCall(Box<fn(&mut MioHandler)>),
@@ -93,7 +94,7 @@ impl<'a> PacketSender for MioSocketState<'a> {
 }
 
 impl<'a> mio::Handler for MioHandler<'a> {
-    type Timeout = ();
+    type Timeout = u32;
     type Message = MioHandlerCommand;
 
     fn ready(&mut self, event_loop: &mut mio::EventLoop<Self>, token: mio::Token, events: mio::EventSet) {
@@ -106,6 +107,16 @@ impl<'a> mio::Handler for MioHandler<'a> {
             if let Ok(Some((size, address))) = result {
                 self.got_packet(size, address);
             }
+        }
+    }
+
+    fn timeout(&mut self, event_loop: &mut mio::EventLoop<Self>, timeout: Self::Timeout) {
+        if timeout == HEARTBEAT_TIMEOUT {
+            for i in self.connections.iter_mut() {
+                i.1.heartbeat(&mut self.socket_state);
+            }
+            //It appears that Mio doesn't actually give us something useful for the error.
+            event_loop.timeout_ms(HEARTBEAT_TIMEOUT, 1000).unwrap();
         }
     }
 }
@@ -133,6 +144,11 @@ fn mio_server_thread(address: net::SocketAddr, notify_created: mpsc::Sender<Resu
     let mut handler = MioHandler::new(&socket);
     if let Err(what)  = event_loop.register(&socket, SOCKET_TOKEN, mio::EventSet::all(), mio::PollOpt::all()) {
         notify_created.send(Err(what)).unwrap();
+        return;
+    }
+    let timer_error = Err(io::Error::new(io::ErrorKind::Other, "Couldn't create the timer."));
+    if let Err(_) = event_loop.timeout_ms(HEARTBEAT_TIMEOUT, 1000) {
+        notify_created.send(timer_error).unwrap();
         return;
     }
     let sender = event_loop.channel();
