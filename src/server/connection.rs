@@ -59,6 +59,7 @@ impl Connection {
 
     pub fn tick1000<T: PacketSender>(&mut self, sender: &mut T) {
         let heartbeat = packets::Packet::Heartbeat{counter: self.heartbeat_counter, sent: self.sent_packets, received: self.received_packets};
+        self.heartbeat_counter += 1;
         self.send(&heartbeat, sender);
     }
 
