@@ -4,8 +4,8 @@ use std::iter::{self, Iterator, IntoIterator};
 use std::net;
 use std::convert;
 
-static PROTOCOL_VERSION: &'static str = "1.0";
-static SUPPORTED_EXTENSIONS: &'static [&'static str] = &[];
+pub static PROTOCOL_VERSION: &'static str = "1.0";
+pub static SUPPORTED_EXTENSIONS: &'static [&'static str] = &[];
 
 pub fn translate(request: &packets::StatusRequest)->packets::StatusResponse {
     match *request {

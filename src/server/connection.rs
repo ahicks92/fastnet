@@ -1,5 +1,6 @@
 use super::*;
-use super::super::packets::{self, Packet};
+use super::super::packets::*;
+use super::super::status_translator;
 use std::net;
 
 
@@ -38,12 +39,12 @@ impl Connection {
         }
     }
 
-    pub fn send<T: PacketSender>(&mut self, packet: &packets::Packet, sender: &mut T)->bool {
+    pub fn send<T: PacketSender>(&mut self, packet: &Packet, sender: &mut T)->bool {
         self.sent_packets += 1;
         sender.send(packet, self.address)
     }
 
-    pub fn handle_incoming_packet<T: PacketSender>(&mut self, packet: &packets::Packet, sender: &mut T)->bool {
+    pub fn handle_incoming_packet<T: PacketSender>(&mut self, packet: &Packet, sender: &mut T)->bool {
         self.received_packets += 1; //Always.
         match *packet {
             Packet::Echo(id) => {
@@ -53,12 +54,58 @@ impl Connection {
             Packet::Heartbeat{counter: c, sent: s, received: r} => {
                 true
             },
+            Packet::Connected(id) => {
+                self.handle_connected(id);
+                true
+            },
+            Packet::Aborted(ref message) => {
+                self.handle_aborted(message);
+                true
+            },
             _ => false
         }
     }
 
+    fn handle_connected(&mut self, id: u64) {
+        if let ConnectionState::Establishing{listening, compatible_version, ..} = self.state {
+            if listening && compatible_version {
+                self.remote_id = id;
+                self.state = ConnectionState::Established;
+            }
+        }
+        //Otherwise, we shouldn't be receiving this yet so just drop it.
+    }
+
+    fn handle_aborted(&mut self, message: &str) {
+        self.state = ConnectionState::Closed;
+        //TODO: notify the user.
+    }
+
+    fn handle_status_response(&mut self, resp: &StatusResponse) {
+        if let ConnectionState::Establishing{mut listening, mut compatible_version, mut attempts} = self.state {
+            match *resp {
+                StatusResponse::FastnetResponse(new_listening) if listening == false => {
+                    if new_listening == false {
+                        self.state = ConnectionState::Closed;
+                        return;
+                    }
+                    listening = true;
+                },
+                StatusResponse::VersionResponse(ref v) if compatible_version == false => {
+                    if v.eq(status_translator::PROTOCOL_VERSION) == false {
+                        self.state = ConnectionState::Closed;
+                        return;
+                    }
+                    compatible_version = true;
+                }
+                _ => {}
+            }
+            self.state = ConnectionState::Establishing{attempts: 0, listening: listening, compatible_version: compatible_version};
+        }
+    }
+
     pub fn tick1000<T: PacketSender>(&mut self, sender: &mut T) {
-        let heartbeat = packets::Packet::Heartbeat{counter: self.heartbeat_counter, sent: self.sent_packets, received: self.received_packets};
+        let heartbeat = Packet::Heartbeat{counter: self.heartbeat_counter, sent: self.sent_packets, received: self.received_packets};
         self.heartbeat_counter += 1;
         self.send(&heartbeat, sender);
     }
@@ -72,21 +119,21 @@ impl Connection {
                         self.state = ConnectionState::Closed;
                         return;
                     }
-                    sender.send(&packets::Packet::StatusRequest(packets::StatusRequest::FastnetQuery), self.address);
+                    sender.send(&Packet::StatusRequest(StatusRequest::FastnetQuery), self.address);
                 }
                 else if compatible_version == false {
                     if attempts > MAX_STATUS_ATTEMPTS {
                         self.state = ConnectionState::Closed;
                         return;
                     }
-                    sender.send(&packets::Packet::StatusRequest(packets::StatusRequest::VersionQuery), self.address);
+                    sender.send(&Packet::StatusRequest(StatusRequest::VersionQuery), self.address);
                 }
                 else {
                     if attempts > MAX_CONNECTION_ATTEMPTS {
                         self.state = ConnectionState::Closed;
                         return;
                     }
-                    sender.send(&packets::Packet::Connect, self.address);
+                    sender.send(&Packet::Connect, self.address);
                 }
             },
             _ => {},
