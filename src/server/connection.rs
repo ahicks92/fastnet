@@ -39,16 +39,16 @@ impl Connection {
         }
     }
 
-    pub fn send(&mut self, packet: &Packet, sender: &mut MioSocketState)->bool {
+    pub fn send(&mut self, packet: &Packet, service: &mut MioServiceProvider)->bool {
         self.sent_packets += 1;
-        sender.send(packet, self.address)
+        service.send(packet, self.address)
     }
 
-    pub fn handle_incoming_packet(&mut self, packet: &Packet, sender: &mut MioSocketState)->bool {
+    pub fn handle_incoming_packet(&mut self, packet: &Packet, service: &mut MioServiceProvider)->bool {
         self.received_packets += 1; //Always.
         match *packet {
             Packet::Echo(id) => {
-                self.send(packet, sender);
+                self.send(packet, service);
                 true
             },
             Packet::Heartbeat{counter: c, sent: s, received: r} => {
@@ -104,13 +104,13 @@ impl Connection {
         }
     }
 
-    pub fn tick1000(&mut self, sender: &mut MioSocketState) {
+    pub fn tick1000(&mut self, service: &mut MioServiceProvider) {
         let heartbeat = Packet::Heartbeat{counter: self.heartbeat_counter, sent: self.sent_packets, received: self.received_packets};
         self.heartbeat_counter += 1;
-        self.send(&heartbeat, sender);
+        self.send(&heartbeat, service);
     }
 
-    pub fn tick200(&mut self, sender: &mut MioSocketState) {
+    pub fn tick200(&mut self, service: &mut MioServiceProvider) {
         match self.state {
             ConnectionState::Establishing{mut attempts, listening, compatible_version} => {
                 attempts += 1;
@@ -119,21 +119,21 @@ impl Connection {
                         self.state = ConnectionState::Closed;
                         return;
                     }
-                    sender.send(&Packet::StatusRequest(StatusRequest::FastnetQuery), self.address);
+                    service.send(&Packet::StatusRequest(StatusRequest::FastnetQuery), self.address);
                 }
                 else if compatible_version == false {
                     if attempts > MAX_STATUS_ATTEMPTS {
                         self.state = ConnectionState::Closed;
                         return;
                     }
-                    sender.send(&Packet::StatusRequest(StatusRequest::VersionQuery), self.address);
+                    service.send(&Packet::StatusRequest(StatusRequest::VersionQuery), self.address);
                 }
                 else {
                     if attempts > MAX_CONNECTION_ATTEMPTS {
                         self.state = ConnectionState::Closed;
                         return;
                     }
-                    sender.send(&Packet::Connect, self.address);
+                    service.send(&Packet::Connect, self.address);
                 }
             },
             _ => {},
