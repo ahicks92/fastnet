@@ -34,6 +34,21 @@ impl Server {
     pub fn new<H: Handler+Send+'static>(addr: net::SocketAddr, handler: H)->Result<Server> {
         Ok(Server::default())
     }
+
+    /**For debugging, as this implementation is currently alpha.
+    
+    This will go away, but enables printing sent/received packets to stdout, among other things.*/
+    pub fn enable_debug_prints(&mut self) {
+
+    /**Schedule a connection request.
+    
+    This will cause the associated handler to be passed the result with the specified request ID.*/
+    pub fn connect(addr: net::SocketAddr, request_id: u64) {
+    }
+
+    /**Disconnect from a peer with the specified ID.*/
+    pub fn disconnect(id: u64, request_id: u64) {
+    }
 }
 
 /**An event handler.
