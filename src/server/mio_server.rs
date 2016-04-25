@@ -81,8 +81,8 @@ impl<'a> MioHandler<'a> {
     }
 }
 
-impl<'a> PacketSender for MioSocketState<'a> {
-    fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr)->bool {
+impl<'A> MioSocketState<'A> {
+    pub fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr)->bool {
         if let Ok(size) = packets::encode_packet(packet, &mut self.outgoing_packet_buffer[4..]) {
             let checksum = crc32::checksum_castagnoli(&self.outgoing_packet_buffer[4..size]);
             BigEndian::write_u32(&mut self.outgoing_packet_buffer[..4], checksum);

@@ -39,12 +39,12 @@ impl Connection {
         }
     }
 
-    pub fn send<T: PacketSender>(&mut self, packet: &Packet, sender: &mut T)->bool {
+    pub fn send(&mut self, packet: &Packet, sender: &mut MioSocketState)->bool {
         self.sent_packets += 1;
         sender.send(packet, self.address)
     }
 
-    pub fn handle_incoming_packet<T: PacketSender>(&mut self, packet: &Packet, sender: &mut T)->bool {
+    pub fn handle_incoming_packet(&mut self, packet: &Packet, sender: &mut MioSocketState)->bool {
         self.received_packets += 1; //Always.
         match *packet {
             Packet::Echo(id) => {
@@ -104,13 +104,13 @@ impl Connection {
         }
     }
 
-    pub fn tick1000<T: PacketSender>(&mut self, sender: &mut T) {
+    pub fn tick1000(&mut self, sender: &mut MioSocketState) {
         let heartbeat = Packet::Heartbeat{counter: self.heartbeat_counter, sent: self.sent_packets, received: self.received_packets};
         self.heartbeat_counter += 1;
         self.send(&heartbeat, sender);
     }
 
-    pub fn tick200<T: PacketSender>(&mut self, sender: &mut T) {
+    pub fn tick200(&mut self, sender: &mut MioSocketState) {
         match self.state {
             ConnectionState::Establishing{mut attempts, listening, compatible_version} => {
                 attempts += 1;
