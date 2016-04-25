@@ -1,4 +1,5 @@
 use super::*;
+use super::super::{Handler};
 use super::super::packets::{self, Encodable, Decodable};
 use super::super::status_translator;
 use crc::crc32;
@@ -19,32 +20,34 @@ pub enum TimeoutTypes {
     Timeout200,
 }
 
-pub enum MioHandlerCommand {
-    DoCall(Box<fn(&mut MioHandler)>),
+pub enum MioHandlerCommand<H: Handler> {
+    DoCall(Box<fn(&mut MioHandler<H>)>),
 }
 
 /*This doesn't have a good name.
 
 Basically it exists so that we can pass some stuff around without making the borrow checker mad.  Primarily it "provides" services, so we call it for that.*/
-pub struct MioServiceProvider<'a> {
-    socket: &'a udp::UdpSocket,
-    incoming_packet_buffer: [u8; 1000],
-    outgoing_packet_buffer: [u8; 1000],
+pub struct MioServiceProvider<'a, H: Handler> {
+    pub socket: &'a udp::UdpSocket,
+    pub incoming_packet_buffer: [u8; 1000],
+    pub outgoing_packet_buffer: [u8; 1000],
+    pub handler: H,
 }
 
-pub struct MioHandler<'a> {
-    service: MioServiceProvider<'a>,
+pub struct MioHandler<'a, H: Handler> {
+    service: MioServiceProvider<'a, H>,
     connections: collections::HashMap<net::SocketAddr, Connection>,
     next_connection_id: u64,
 }
 
-impl<'a> MioHandler<'a> {
-    pub fn new(socket: &'a udp::UdpSocket)->MioHandler<'a> {
+impl<'a, H: Handler> MioHandler<'a, H> {
+    pub fn new(socket: &'a udp::UdpSocket, handler: H)->MioHandler<'a, H> {
         MioHandler {
             service: MioServiceProvider {
                 socket: socket,
                 incoming_packet_buffer: [0u8; 1000],
                 outgoing_packet_buffer: [0u8; 1000],
+                handler: handler,
             },
             connections: collections::HashMap::new(),
             next_connection_id: 1,
@@ -82,7 +85,7 @@ impl<'a> MioHandler<'a> {
     }
 }
 
-impl<'A> MioServiceProvider<'A> {
+impl<'A, H: Handler> MioServiceProvider<'A, H> {
     pub fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr)->bool {
         if let Ok(size) = packets::encode_packet(packet, &mut self.outgoing_packet_buffer[4..]) {
             let checksum = crc32::checksum_castagnoli(&self.outgoing_packet_buffer[4..size]);
@@ -97,9 +100,9 @@ impl<'A> MioServiceProvider<'A> {
     }
 }
 
-impl<'a> mio::Handler for MioHandler<'a> {
+impl<'a, H: Handler+Send> mio::Handler for MioHandler<'a, H> {
     type Timeout = TimeoutTypes;
-    type Message = MioHandlerCommand;
+    type Message = MioHandlerCommand<H>;
 
     fn ready(&mut self, event_loop: &mut mio::EventLoop<Self>, token: mio::Token, events: mio::EventSet) {
         //We only have one socket, so can avoid the match on the token.
@@ -131,7 +134,7 @@ impl<'a> mio::Handler for MioHandler<'a> {
     }
 }
 
-fn mio_server_thread(address: net::SocketAddr, notify_created: mpsc::Sender<Result<mio::Sender<MioHandlerCommand>, io::Error>>) {
+fn mio_server_thread< H: Handler+Send>(address: net::SocketAddr, handler: H, notify_created: mpsc::Sender<Result<mio::Sender<MioHandlerCommand<H>>, io::Error>>) {
     let maybe_socket = match address {
         net::SocketAddr::V4(_) => udp::UdpSocket::v4(),
         net::SocketAddr::V6(_) => udp::UdpSocket::v6()
@@ -151,7 +154,7 @@ fn mio_server_thread(address: net::SocketAddr, notify_created: mpsc::Sender<Resu
         return;
     }
     let mut event_loop = maybe_loop.unwrap();
-    let mut handler = MioHandler::new(&socket);
+    let mut handler = MioHandler::new(&socket, handler);
     if let Err(what)  = event_loop.register(&socket, SOCKET_TOKEN, mio::EventSet::all(), mio::PollOpt::all()) {
         notify_created.send(Err(what)).unwrap();
         return;
@@ -170,15 +173,15 @@ fn mio_server_thread(address: net::SocketAddr, notify_created: mpsc::Sender<Resu
     event_loop.run(&mut handler);
 }
 
-pub struct MioServer {
+pub struct MioServer<H: Handler> {
     thread: thread::JoinHandle<()>,
-    sender: mio::Sender<MioHandlerCommand>,
+    sender: mio::Sender<MioHandlerCommand<H>>,
 }
 
-impl MioServer {
-    fn new(address: net::SocketAddr)->Result<MioServer, io::Error> {
+impl<H: Handler+Send+'static> MioServer<H> {
+    fn new(address: net::SocketAddr, handler: H)->Result<MioServer<H>, io::Error> {
         let (sender, receiver) = mpsc::channel();
-        let join_handle = thread::spawn(move || mio_server_thread(address, sender));
+        let join_handle = thread::spawn(move || mio_server_thread(address, handler, sender));
         let message_sender = try!(receiver.recv().unwrap());
         Ok(MioServer {
             thread: join_handle,
