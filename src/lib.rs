@@ -32,7 +32,7 @@ Fastnet does not distinguish between clients and servers.  This is used both for
 pub struct Server;
 
 impl Server {
-    pub fn new<H: Handler>(addr: net::SocketAddr, handler: H)->Result<Server> {
+    pub fn new<H: Handler+Send>(addr: net::SocketAddr, handler: H)->Result<Server> {
         Ok(Server::default())
     }
 }
