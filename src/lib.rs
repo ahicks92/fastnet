@@ -16,27 +16,24 @@ use std::{result, io, net};
 
 ///Represents a Fastnet error.
 #[derive(Debug, Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
-enum Error {
+pub enum Error {
     TimedOut,
     HostNotFound,
     PeerNotFound,
     MessageTooLarge,
 }
 
-type Result<T> = result::Result<T, Error>;
+pub type Result<T> = result::Result<T, Error>;
 
 /**A Fastnet server.
 
 Fastnet does not distinguish between clients and servers.  This is used both for connecting to other peers and listening for incoming connections.*/
-struct Server<H: Handler> {
-    handler: H,
-}
+#[derive(Default)]
+pub struct Server;
 
-impl<H: Handler> Server<H> {
-    pub fn new(addr: net::SocketAddr, handler: H)->Result<Server<H>> {
-        Ok(Server {
-            handler: handler,
-        })
+impl Server {
+    pub fn new<H: Handler>(addr: net::SocketAddr, handler: H)->Result<Server> {
+        Ok(Server::default())
     }
 }
 
@@ -47,4 +44,5 @@ pub trait Handler {
     fn connected(&mut self, id: u64, request_id: Option<u64>);
     fn disconnected(&mut self, id: u64, request_id: Option<u64>);
     fn message(&mut self, id: u64, channel: u16, payload: &[u8]);
+    fn request_failed(&mut self, request_id: u64, error: Error);
 }
