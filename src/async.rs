@@ -6,6 +6,8 @@ pub enum Error {
     TimedOut,
     HostNotFound,
     PeerNotFound,
+    NotListening,
+    IncompatibleVersions,
     MessageTooLarge,
 }
 
