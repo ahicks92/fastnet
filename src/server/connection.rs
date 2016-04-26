@@ -45,9 +45,8 @@ impl Connection {
     pub fn establish<H: async::Handler>(&mut self, request_id: Option<u64>, service: &mut MioServiceProvider<H>) {
         if let ConnectionState::Closed = self.state {
             self.state = ConnectionState::Establishing{listening: false, compatible_version: false, attempts: 0, request_id: request_id};
-            //Send these off here, to get things rolling.
+            //get things rolling...
             self.send(&Packet::StatusRequest(StatusRequest::FastnetQuery), service);
-            self.send(&Packet::StatusRequest(StatusRequest::VersionQuery), service);
         }
     }
 
@@ -108,6 +107,7 @@ impl Connection {
                         return;
                     }
                     listening = true;
+                    self.send(&Packet::StatusRequest(StatusRequest::VersionQuery), service);
                 },
                 StatusResponse::VersionResponse(ref v) if compatible_version == false => {
                     if v.eq(status_translator::PROTOCOL_VERSION) == false {
