@@ -21,7 +21,7 @@ pub enum TimeoutTypes {
 }
 
 pub enum MioHandlerCommand<H: async::Handler> {
-    DoCall(Box<fn(&mut MioHandler<H>)>),
+    DoCall(Box<Fn(&mut MioHandler<H>)+Send>),
 }
 
 /*This doesn't have a good name.
@@ -96,6 +96,18 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
     pub fn enable_debug_print(&mut self) {
         self.service.debug_print_enabled = true;
     }
+
+    pub fn connect(&mut self, address: net:: SocketAddr, request_id: u64) {
+        let id = self.next_connection_id;
+        self.next_connection_id += 1;
+        let mut conn = Connection::new(address, id);
+        conn.establish(Some(request_id), &mut self.service);
+        self.connections.insert(address, conn);
+    }
+
+    pub fn disconnect(&mut self, id: u64, request_id: u64) {
+        //todo: fill this out.
+    }
 }
 
 impl<'A, H: async::Handler> MioServiceProvider<'A, H> {
@@ -149,6 +161,12 @@ impl<'a, H: async::Handler+Send> mio::Handler for MioHandler<'a, H> {
         };
         event_loop.timeout_ms(timeout, rereg).unwrap();
     }
+
+    fn notify(&mut self, event_loop: &mut mio::EventLoop<Self>, message: Self::Message) {
+        match message {
+            MioHandlerCommand::DoCall(ref f) => f(self),
+        }
+    }
 }
 
 fn mio_server_thread< H: async::Handler+Send>(address: net::SocketAddr, handler: H, notify_created: mpsc::Sender<Result<mio::Sender<MioHandlerCommand<H>>, io::Error>>) {
@@ -196,7 +214,7 @@ pub struct MioServer<H: async::Handler> {
 }
 
 impl<H: async::Handler+Send+'static> MioServer<H> {
-    fn new(address: net::SocketAddr, handler: H)->Result<MioServer<H>, io::Error> {
+    pub fn new(address: net::SocketAddr, handler: H)->Result<MioServer<H>, io::Error> {
         let (sender, receiver) = mpsc::channel();
         let join_handle = thread::spawn(move || mio_server_thread(address, handler, sender));
         let message_sender = try!(receiver.recv().unwrap());
@@ -204,5 +222,10 @@ impl<H: async::Handler+Send+'static> MioServer<H> {
             thread: join_handle,
             sender: message_sender,
         })
+    }
+
+    pub fn with<F: Fn(&mut MioHandler<H>)+Send+'static>(&mut self, func: F) {
+        let command = MioHandlerCommand::DoCall(Box::new(func));
+        self.sender.send(command);
     }
 }

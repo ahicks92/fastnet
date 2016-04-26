@@ -1,7 +1,7 @@
 use std::{result, io, net};
-
+use server;
 ///Represents a Fastnet error.
-#[derive(Debug, Copy, Clone, Eq, Ord, PartialEq, PartialOrd)]
+#[derive(Debug)]
 pub enum Error {
     TimedOut,
     HostNotFound,
@@ -10,6 +10,7 @@ pub enum Error {
     IncompatibleVersions,
     ConnectionAborted,
     MessageTooLarge,
+    IoError(io::Error),
 }
 
 pub type Result<T> = result::Result<T, Error>;
@@ -17,28 +18,33 @@ pub type Result<T> = result::Result<T, Error>;
 /**A Fastnet server.
 
 Fastnet does not distinguish between clients and servers.  This is used both for connecting to other peers and listening for incoming connections.*/
-#[derive(Default)]
-pub struct Server;
+pub struct Server<H: Handler+Send+'static> {
+    server: server::MioServer<H>,
+}
 
-impl Server {
-    pub fn new<H: Handler+Send+'static>(addr: net::SocketAddr, handler: H)->Result<Server> {
-        Ok(Server::default())
+impl<H: Handler+Send+'static> Server<H> {
+    pub fn new(addr: net::SocketAddr, handler: H)->Result<Server<H>> {
+        let s = try!(server::MioServer::new(addr, handler).map_err(Error::IoError));
+        Ok(Server{server: s})
     }
 
     /**For debugging, as this implementation is currently alpha.
     
     This will go away, but enables printing sent/received packets to stdout, among other things.*/
-    pub fn enable_debug_prints(&mut self) {
+    pub fn enable_debug_print(&mut self) {
+        self.server.with(|s| s.enable_debug_print());
     }
 
     /**Schedule a connection request.
     
     This will cause the associated handler to be passed the result with the specified request ID.*/
-    pub fn connect(addr: net::SocketAddr, request_id: u64) {
+    pub fn connect(&mut self, addr: net::SocketAddr, request_id: u64) {
+        self.server.with(move |s| s.connect(addr, request_id));
     }
 
     /**Disconnect from a peer with the specified ID.*/
-    pub fn disconnect(id: u64, request_id: u64) {
+    pub fn disconnect(&mut self, id: u64, request_id: u64) {
+        self.server.with(move |s| s.disconnect(id, request_id));
     }
 }
 
