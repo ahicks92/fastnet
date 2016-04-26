@@ -73,15 +73,19 @@ impl Connection {
             if listening && compatible_version {
                 self.remote_id = id;
                 self.state = ConnectionState::Established;
+                service.handler.connected(self.local_id, request_id);
             }
-            service.handler.connected(self.local_id, request_id);
         }
         //Otherwise, we shouldn't be receiving this yet so just drop it.
     }
 
     fn handle_aborted<H: async::Handler>(&mut self, message: &str, service: &mut MioServiceProvider<H>) {
-        self.state = ConnectionState::Closed;
-        //TODO: notify the user.
+        if let ConnectionState::Establishing{listening, compatible_version, request_id, ..} = self.state {
+            if listening && compatible_version {
+                self.state = ConnectionState::Closed;
+                if let Some(id) = request_id {service.handler.request_failed(id, async::Error::ConnectionAborted);}
+            }
+        }
     }
 
     fn handle_status_response<H: async::Handler>(&mut self, resp: &StatusResponse, service: &mut MioServiceProvider<H>) {

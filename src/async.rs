@@ -8,6 +8,7 @@ pub enum Error {
     PeerNotFound,
     NotListening,
     IncompatibleVersions,
+    ConnectionAborted,
     MessageTooLarge,
 }
 
@@ -47,6 +48,6 @@ The methods in this trait are called in a thread which is running in the backgro
 pub trait Handler {
     fn connected(&mut self, id: u64, request_id: Option<u64>);
     fn disconnected(&mut self, id: u64, request_id: Option<u64>);
-    fn message(&mut self, id: u64, channel: u16, payload: &[u8]);
+    fn incoming_message(&mut self, id: u64, channel: u16, payload: &[u8]);
     fn request_failed(&mut self, request_id: u64, error: Error);
 }
