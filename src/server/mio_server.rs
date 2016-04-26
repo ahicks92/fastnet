@@ -1,5 +1,5 @@
 use super::*;
-use super::super::{Handler};
+use super::super::async;
 use super::super::packets::{self, Encodable, Decodable};
 use super::super::status_translator;
 use crc::crc32;
@@ -20,27 +20,27 @@ pub enum TimeoutTypes {
     Timeout200,
 }
 
-pub enum MioHandlerCommand<H: Handler> {
+pub enum MioHandlerCommand<H: async::Handler> {
     DoCall(Box<fn(&mut MioHandler<H>)>),
 }
 
 /*This doesn't have a good name.
 
 Basically it exists so that we can pass some stuff around without making the borrow checker mad.  Primarily it "provides" services, so we call it for that.*/
-pub struct MioServiceProvider<'a, H: Handler> {
+pub struct MioServiceProvider<'a, H: async::Handler> {
     pub socket: &'a udp::UdpSocket,
     pub incoming_packet_buffer: [u8; 1000],
     pub outgoing_packet_buffer: [u8; 1000],
     pub handler: H,
 }
 
-pub struct MioHandler<'a, H: Handler> {
+pub struct MioHandler<'a, H: async::Handler> {
     service: MioServiceProvider<'a, H>,
     connections: collections::HashMap<net::SocketAddr, Connection>,
     next_connection_id: u64,
 }
 
-impl<'a, H: Handler> MioHandler<'a, H> {
+impl<'a, H: async::Handler> MioHandler<'a, H> {
     pub fn new(socket: &'a udp::UdpSocket, handler: H)->MioHandler<'a, H> {
         MioHandler {
             service: MioServiceProvider {
@@ -85,7 +85,7 @@ impl<'a, H: Handler> MioHandler<'a, H> {
     }
 }
 
-impl<'A, H: Handler> MioServiceProvider<'A, H> {
+impl<'A, H: async::Handler> MioServiceProvider<'A, H> {
     pub fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr)->bool {
         if let Ok(size) = packets::encode_packet(packet, &mut self.outgoing_packet_buffer[4..]) {
             let checksum = crc32::checksum_castagnoli(&self.outgoing_packet_buffer[4..size]);
@@ -100,7 +100,7 @@ impl<'A, H: Handler> MioServiceProvider<'A, H> {
     }
 }
 
-impl<'a, H: Handler+Send> mio::Handler for MioHandler<'a, H> {
+impl<'a, H: async::Handler+Send> mio::Handler for MioHandler<'a, H> {
     type Timeout = TimeoutTypes;
     type Message = MioHandlerCommand<H>;
 
@@ -134,7 +134,7 @@ impl<'a, H: Handler+Send> mio::Handler for MioHandler<'a, H> {
     }
 }
 
-fn mio_server_thread< H: Handler+Send>(address: net::SocketAddr, handler: H, notify_created: mpsc::Sender<Result<mio::Sender<MioHandlerCommand<H>>, io::Error>>) {
+fn mio_server_thread< H: async::Handler+Send>(address: net::SocketAddr, handler: H, notify_created: mpsc::Sender<Result<mio::Sender<MioHandlerCommand<H>>, io::Error>>) {
     let maybe_socket = match address {
         net::SocketAddr::V4(_) => udp::UdpSocket::v4(),
         net::SocketAddr::V6(_) => udp::UdpSocket::v6()
@@ -173,12 +173,12 @@ fn mio_server_thread< H: Handler+Send>(address: net::SocketAddr, handler: H, not
     event_loop.run(&mut handler);
 }
 
-pub struct MioServer<H: Handler> {
+pub struct MioServer<H: async::Handler> {
     thread: thread::JoinHandle<()>,
     sender: mio::Sender<MioHandlerCommand<H>>,
 }
 
-impl<H: Handler+Send+'static> MioServer<H> {
+impl<H: async::Handler+Send+'static> MioServer<H> {
     fn new(address: net::SocketAddr, handler: H)->Result<MioServer<H>, io::Error> {
         let (sender, receiver) = mpsc::channel();
         let join_handle = thread::spawn(move || mio_server_thread(address, handler, sender));

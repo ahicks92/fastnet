@@ -1,6 +1,6 @@
 use super::*;
 use super::super::packets::*;
-use super::super::{Handler};
+use super::super::async;
 use super::super::status_translator;
 use std::net;
 
@@ -40,12 +40,12 @@ impl Connection {
         }
     }
 
-    pub fn send<H: Handler>(&mut self, packet: &Packet, service: &mut MioServiceProvider<H>)->bool {
+    pub fn send<H: async::Handler>(&mut self, packet: &Packet, service: &mut MioServiceProvider<H>)->bool {
         self.sent_packets += 1;
         service.send(packet, self.address)
     }
 
-    pub fn handle_incoming_packet<H: Handler>(&mut self, packet: &Packet, service: &mut MioServiceProvider<H>)->bool {
+    pub fn handle_incoming_packet<H: async::Handler>(&mut self, packet: &Packet, service: &mut MioServiceProvider<H>)->bool {
         self.received_packets += 1; //Always.
         match *packet {
             Packet::Echo(id) => {
@@ -105,13 +105,13 @@ impl Connection {
         }
     }
 
-    pub fn tick1000<H: Handler>(&mut self, service: &mut MioServiceProvider<H>) {
+    pub fn tick1000<H: async::Handler>(&mut self, service: &mut MioServiceProvider<H>) {
         let heartbeat = Packet::Heartbeat{counter: self.heartbeat_counter, sent: self.sent_packets, received: self.received_packets};
         self.heartbeat_counter += 1;
         self.send(&heartbeat, service);
     }
 
-    pub fn tick200<H: Handler>(&mut self, service: &mut MioServiceProvider<H>) {
+    pub fn tick200<H: async::Handler>(&mut self, service: &mut MioServiceProvider<H>) {
         match self.state {
             ConnectionState::Establishing{mut attempts, listening, compatible_version} => {
                 attempts += 1;
