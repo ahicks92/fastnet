@@ -41,6 +41,16 @@ impl Connection {
         }
     }
 
+
+    pub fn establish<H: async::Handler>(&mut self, request_id: Option<u64>, service: &mut MioServiceProvider<H>) {
+        if let ConnectionState::Closed = self.state {
+            self.state = ConnectionState::Establishing{listening: false, compatible_version: false, attempts: 0, request_id: request_id};
+            //Send these off here, to get things rolling.
+            self.send(&Packet::StatusRequest(StatusRequest::FastnetQuery), service);
+            self.send(&Packet::StatusRequest(StatusRequest::VersionQuery), service);
+        }
+    }
+
     pub fn send<H: async::Handler>(&mut self, packet: &Packet, service: &mut MioServiceProvider<H>)->bool {
         self.sent_packets += 1;
         service.send(packet, self.address)
