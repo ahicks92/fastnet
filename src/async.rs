@@ -52,8 +52,15 @@ impl<H: Handler+Send+'static> Server<H> {
 
 The methods in this trait are called in a thread which is running in the background, not on the main thread.  None of them should ever block.*/
 pub trait Handler {
-    fn connected(&mut self, id: u64, request_id: Option<u64>);
-    fn disconnected(&mut self, id: u64, request_id: Option<u64>);
-    fn incoming_message(&mut self, id: u64, channel: u16, payload: &[u8]);
-    fn request_failed(&mut self, request_id: u64, error: Error);
+    fn connected(&mut self, id: u64, request_id: Option<u64>) {
+    }
+
+    fn disconnected(&mut self, id: u64, request_id: Option<u64>) {
+    }
+
+    fn incoming_message(&mut self, id: u64, channel: u16, payload: &[u8]) {
+    }
+
+    fn request_failed(&mut self, request_id: u64, error: Error) {
+    }
 }
