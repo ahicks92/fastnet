@@ -32,6 +32,7 @@ pub struct MioServiceProvider<'a, H: async::Handler> {
     pub incoming_packet_buffer: [u8; 1000],
     pub outgoing_packet_buffer: [u8; 1000],
     pub handler: H,
+    pub debug_print_enabled: bool,
 }
 
 pub struct MioHandler<'a, H: async::Handler> {
@@ -48,6 +49,7 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
                 incoming_packet_buffer: [0u8; 1000],
                 outgoing_packet_buffer: [0u8; 1000],
                 handler: handler,
+                debug_print_enabled: false,
             },
             connections: collections::HashMap::new(),
             next_connection_id: 1,
@@ -65,6 +67,10 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
         };
         if let Err(_) = maybe_packet {return;}
         let packet = maybe_packet.unwrap();
+        if self.service.debug_print_enabled {
+            format!("Packet from {:?}:\n", address);
+            format!("{:?}\n", packet);
+        }
         if let Some(ref mut conn) = self.connections.get_mut(&address) {
             if conn.handle_incoming_packet(&packet, &mut self.service) {return;}
         }
@@ -80,13 +86,24 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
             packets::Packet::StatusRequest(ref req) => {
                 self.service.send(&packets::Packet::StatusResponse(status_translator::translate(req)), address);
             },
-            _ => {}
+            p@_ => {
+                if self.service.debug_print_enabled {format!("Unhandled.\n");}
+            }
         }
+        if self.service.debug_print_enabled {format!("\n");}
+    }
+
+    pub fn enable_debug_print(&mut self) {
+        self.service.debug_print_enabled = true;
     }
 }
 
 impl<'A, H: async::Handler> MioServiceProvider<'A, H> {
     pub fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr)->bool {
+        if self.debug_print_enabled {
+            format!("sending to {:?}:", address);
+            format!("{:?}\n\n", packet);
+        }
         if let Ok(size) = packets::encode_packet(packet, &mut self.outgoing_packet_buffer[4..]) {
             let checksum = crc32::checksum_castagnoli(&self.outgoing_packet_buffer[4..size]);
             BigEndian::write_u32(&mut self.outgoing_packet_buffer[..4], checksum);
