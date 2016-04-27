@@ -3,7 +3,7 @@ use super::super::packets::*;
 use super::super::async;
 use super::super::status_translator;
 use std::net;
-
+use std::borrow::{Borrow};
 
 #[derive(Debug, Copy, Clone)]
 pub enum ConnectionState {
@@ -46,11 +46,11 @@ impl Connection {
         if let ConnectionState::Closed = self.state {
             self.state = ConnectionState::Establishing{listening: false, compatible_version: false, attempts: 0, request_id: request_id};
             //get things rolling...
-            self.send(&Packet::StatusRequest(StatusRequest::FastnetQuery), service);
+            self.send(Packet::StatusRequest(StatusRequest::FastnetQuery), service);
         }
     }
 
-    pub fn send<H: async::Handler>(&mut self, packet: &Packet, service: &mut MioServiceProvider<H>)->bool {
+    pub fn send<P: Borrow<Packet>, H: async::Handler>(&mut self, packet: P, service: &mut MioServiceProvider<H>)->bool {
         self.sent_packets += 1;
         service.send(packet, self.address)
     }
@@ -111,7 +111,7 @@ impl Connection {
                         return;
                     }
                     listening = true;
-                    self.send(&Packet::StatusRequest(StatusRequest::VersionQuery), service);
+                    self.send(Packet::StatusRequest(StatusRequest::VersionQuery), service);
                 },
                 StatusResponse::VersionResponse(ref v) if compatible_version == false => {
                     if v.eq(status_translator::PROTOCOL_VERSION) == false {
@@ -125,7 +125,7 @@ impl Connection {
             }
             if listening && compatible_version {
                 let id = self.local_id;
-                self.send(&Packet::Connect(id), service);
+                self.send(Packet::Connect(id), service);
             }
             self.state = ConnectionState::Establishing{attempts: 0, listening: listening, compatible_version: compatible_version, request_id: request_id};
         }
@@ -135,7 +135,7 @@ impl Connection {
         if let ConnectionState::Established = self.state {
             let heartbeat = Packet::Heartbeat{counter: self.heartbeat_counter, sent: self.sent_packets, received: self.received_packets};
             self.heartbeat_counter += 1;
-            self.send(&heartbeat, service);
+            self.send(heartbeat, service);
         }
     }
 
@@ -149,7 +149,7 @@ impl Connection {
                         self.state = ConnectionState::Closed;
                         return;
                     }
-                    service.send(&Packet::StatusRequest(StatusRequest::FastnetQuery), self.address);
+                    service.send(Packet::StatusRequest(StatusRequest::FastnetQuery), self.address);
                 }
                 else if compatible_version == false {
                     if attempts > MAX_STATUS_ATTEMPTS {
@@ -157,7 +157,7 @@ impl Connection {
                         self.state = ConnectionState::Closed;
                         return;
                     }
-                    service.send(&Packet::StatusRequest(StatusRequest::VersionQuery), self.address);
+                    service.send(Packet::StatusRequest(StatusRequest::VersionQuery), self.address);
                 }
                 else {
                     if attempts > MAX_CONNECTION_ATTEMPTS {
@@ -165,7 +165,7 @@ impl Connection {
                         self.state = ConnectionState::Closed;
                         return;
                     }
-                    service.send(&Packet::Connect(self.local_id), self.address);
+                    service.send(Packet::Connect(self.local_id), self.address);
                 }
             },
             _ => {},

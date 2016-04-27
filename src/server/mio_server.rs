@@ -9,6 +9,7 @@ use std::net;
 use std::thread;
 use std::io;
 use std::sync::mpsc;
+use std::borrow::{Borrow};
 use mio;
 use mio::udp;
 
@@ -80,17 +81,17 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
         match packet {
             packets ::Packet::Connect(id) => {
                 if let Some(c) = self.connections.get(&address) {
-                    self.service.send(&packets::Packet::Connected(c.local_id), address);
+                    self.service.send(packets::Packet::Connected(c.local_id), address);
                     return;
                 }
                 let id = self.next_connection_id;
                 self.next_connection_id += 1;
                 let conn = Connection::new(address, id);
                 self.connections.insert(address, conn);
-                self.service.send(&packets::Packet::Connected(id), address);
+                self.service.send(packets::Packet::Connected(id), address);
             },
             packets::Packet::StatusRequest(ref req) => {
-                self.service.send(&packets::Packet::StatusResponse(status_translator::translate(req)), address);
+                self.service.send(packets::Packet::StatusResponse(status_translator::translate(req)), address);
             },
             p@_ => {
                 if self.service.debug_print_enabled {println!("Unhandled.");}
@@ -119,10 +120,10 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
 }
 
 impl<'A, H: async::Handler> MioServiceProvider<'A, H> {
-    pub fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr)->bool {
+    pub fn send<P: Borrow<packets::Packet>>(&mut self, packet: P, address: net::SocketAddr)->bool {
         if self.debug_print_enabled {
             println!("sending to {:?}:", address);
-            println!("{:?}\n", packet);
+            println!("{:?}\n", packet.borrow());
         }
         if let Ok(size) = packets::encode_packet(packet, &mut self.outgoing_packet_buffer[4..]) {
             let checksum = crc32::checksum_castagnoli(&self.outgoing_packet_buffer[4..4+size]);

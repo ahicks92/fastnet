@@ -2,6 +2,7 @@ use super::*;
 use byteorder::{BigEndian, WriteBytesExt};
 use std::io::{self, Write};
 use std::cmp;
+use std::borrow::{Borrow};
 
 #[derive(Debug)]
 pub enum PacketEncodingError {
@@ -222,7 +223,7 @@ impl Encodable for String {
     }
 }
 
-pub fn encode_packet(packet: &Packet, buffer: &mut [u8])->Result<usize, PacketEncodingError> {
+pub fn encode_packet<P: Borrow<Packet>>(packet: P, buffer: &mut [u8])->Result<usize, PacketEncodingError> {
     let mut writer = PacketWriter::new(buffer);
-    packet.encode(&mut writer).map(|_| writer.written())
+    packet.borrow().encode(&mut writer).map(|_| writer.written())
 }
