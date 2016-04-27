@@ -158,12 +158,17 @@ An implementation must continue to respond to queries even after a connection is
 packets:
 
 ```
-connect = -1:i16 2:u8
+connect = -1:i16 2:u8 id: u64
 connected = -1:i16 3:u8 connection_identifier:u64
 aborted = -1:i16 4:u8 error:s
 ```
 
 With the exception of UDP hole-punching, connections are established using the following algorithm.  UDP hole-punching is described elsewhere in this specification.
+
+An implementation wishing to connect to another implementation must be aware of two identifiers: the local identifier and the remote identifier.
+Local identifiers are generated before the beginning of a connection.
+
+Remote identifers are provided by the implementation to whom the connection is being made.
 
 A Fastnet server must allow only one connection from a specific IP and port.
 
@@ -171,13 +176,15 @@ The following must always take place on channel -1 before a connection is consid
 
 To begin a connection, a client must:
 
-- Use the `fastnet_query` from the status query section to determine if a fastnet implementation is listening.  An implementation must make no more than 10 attempts before aborting.
+1. Generate a local id.  This id will be used to identify the connection to the user.
 
-- Use the `version_query` to determine that the implementations are compatible.  Again, an implementation must make no more than 10 attempts before aborting.
+2. Use the `fastnet_query` from the status query section to determine if a fastnet implementation is listening.  An implementation must make no more than 10 attempts before aborting.
 
-- Send the connect packet.
+3. Use the `version_query` to determine that the implementations are compatible.  Again, an implementation must make no more than 10 attempts before aborting.
 
-- begin waiting for either the connected packet or the aborted packet with a timeout of 5000 MS.  The client must resend the connect packet every 200 MS during this process.
+4. Send the connect packet which must contain the local id.  This becomes the remote id on the implementation that the client is connecting to.
+
+5. Begin waiting for either the connected packet or the aborted packet with a timeout of 5000 MS.  The client must resend the connect packet every 200 MS during this process.
 
 If the client receives the connected packet, it must parse the connection id, notify the application that the connection has been established, and begin processing packets.
 The client must disregard all other packets including queries until it manages to receive the connected packet.
@@ -190,7 +197,7 @@ When the server sees the connect packet, it begins establishing a connection.
 To establish a connection, a server must generate an unsigned 64-bit integer ID.
 This ID must be unique among all currently-established connections to said server.
 It must then encode and send the connected packet and immediately notify the application that a connection was established.
-If the server continues to receive the connection request packet, it must continue to respond with the connected packet but do nothing further; it is possible for the client to not yet know that it is connected due to packet loss.
+If the server continues to receive the connect packet, it must continue to respond with the connected packet but do nothing further; it is possible for the client to not yet know that it is connected due to packet loss.
 
 This specification reserves ID 0 for "no ID".  A server must never use an ID of 0 for a connection.  This enables implementations to use ID 0 for internal purposes, though no other meaning is assigned to it by this specification.
 
