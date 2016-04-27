@@ -58,6 +58,10 @@ impl Connection {
     pub fn handle_incoming_packet<H: async::Handler>(&mut self, packet: &Packet, service: &mut MioServiceProvider<H>)->bool {
         self.received_packets += 1; //Always.
         match *packet {
+            Packet::StatusResponse(ref resp) => {
+                self.handle_status_response(resp, service);
+                true
+            },
             Packet::Echo(id) => {
                 self.send(packet, service);
                 true

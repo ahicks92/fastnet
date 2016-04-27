@@ -79,7 +79,10 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
         }
         match packet {
             packets ::Packet::Connect => {
-                if let Some(_) = self.connections.get(&address) {return;}
+                if let Some(c) = self.connections.get(&address) {
+                    self.service.send(&packets::Packet::Connected(c.local_id), address);
+                    return;
+                }
                 let id = self.next_connection_id;
                 self.next_connection_id += 1;
                 let conn = Connection::new(address, id);
@@ -122,10 +125,9 @@ impl<'A, H: async::Handler> MioServiceProvider<'A, H> {
             println!("{:?}\n", packet);
         }
         if let Ok(size) = packets::encode_packet(packet, &mut self.outgoing_packet_buffer[4..]) {
-            let checksum = crc32::checksum_castagnoli(&self.outgoing_packet_buffer[4..size]);
+            let checksum = crc32::checksum_castagnoli(&self.outgoing_packet_buffer[4..4+size]);
             BigEndian::write_u32(&mut self.outgoing_packet_buffer[..4], checksum);
             if let Ok(Some(sent_bytes)) = self.socket.send_to(&self.outgoing_packet_buffer[..4+size], &address) {
-                if self.debug_print_enabled {println!("Sent {} bytes", sent_bytes);}
                 if sent_bytes == 4+size {return true;}
                 else {return false;}
             }
@@ -196,7 +198,7 @@ fn mio_server_thread< H: async::Handler+Send>(address: net::SocketAddr, handler:
     }
     let mut event_loop = maybe_loop.unwrap();
     let mut handler = MioHandler::new(&socket, handler);
-    if let Err(what)  = event_loop.register(&socket, SOCKET_TOKEN, mio::EventSet::all(), mio::PollOpt::all()) {
+    if let Err(what)  = event_loop.register(&socket, SOCKET_TOKEN, mio::EventSet::all(), mio::PollOpt::level()) {
         notify_created.send(Err(what)).unwrap();
         return;
     }

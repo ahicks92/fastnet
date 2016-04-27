@@ -8,9 +8,9 @@ impl fastnet::Handler for EventHandler {
 }
 
 fn main() {
-    let mut i = "localhost:10000".to_socket_addrs().unwrap();
+    let mut i = "127.0.0.1:10000".to_socket_addrs().unwrap();
     let server_addr = i.next().unwrap();
-    i = "localhost:11000".to_socket_addrs().unwrap();
+    i = "0.0.0.0:11000".to_socket_addrs().unwrap();
     let our_addr = i.next().unwrap();
     let maybe_serv = fastnet::Server::new(our_addr, EventHandler::default());
     if let Err(ref what) = maybe_serv {
