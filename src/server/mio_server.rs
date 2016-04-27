@@ -155,15 +155,13 @@ impl<'a, H: async::Handler+Send> mio::Handler for MioHandler<'a, H> {
     }
 
     fn timeout(&mut self, event_loop: &mut mio::EventLoop<Self>, timeout: Self::Timeout) {
-        //Rust isn't smart enough to realize that closures only borrow a field, so we pull it out here to satisfy the borrow checker.
-        let sender = &mut self.service;
         let rereg = match timeout {
             TimeoutTypes::Timeout200 => {
-                self.connections.iter_mut().map(|x| x.1.tick200(sender));
+                for i in self.connections.iter_mut() {i.1.tick200(&mut self.service)}
                 200
             },
             TimeoutTypes::Timeout1000 => {
-                self.connections.iter_mut().map(|x| x.1.tick1000(sender));
+                for i in self.connections.iter_mut() {i.1.tick1000(&mut self.service);}
                 1000
             },
         };
