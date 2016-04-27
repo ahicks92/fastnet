@@ -78,7 +78,7 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
             if conn.handle_incoming_packet(&packet, &mut self.service) {return;}
         }
         match packet {
-            packets ::Packet::Connect => {
+            packets ::Packet::Connect(id) => {
                 if let Some(c) = self.connections.get(&address) {
                     self.service.send(&packets::Packet::Connected(c.local_id), address);
                     return;

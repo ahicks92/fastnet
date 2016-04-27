@@ -64,9 +64,10 @@ impl Encodable for Packet {
                 try!(STATUS_RESPONSE_SPECIFIER.encode(destination));
                 try!(resp.encode(destination));
             },
-            Packet::Connect => {
+            Packet::Connect(id) => {
                 try!(CONNECTION_CHANNEL.encode(destination));
                 try!(CONNECT_SPECIFIER.encode(destination));
+                try!(id.encode(destination));
             },
             Packet::Connected(id) => {
                 try!(CONNECTION_CHANNEL.encode(destination));

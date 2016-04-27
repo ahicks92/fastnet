@@ -16,7 +16,7 @@ pub enum Packet {
     StatusResponse(StatusResponse),
 
     //Connection handshake (also channel -1).
-    Connect,
+    Connect(u64),
     Connected(u64),
     Aborted(String),
     

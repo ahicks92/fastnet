@@ -123,6 +123,10 @@ impl Connection {
                 }
                 _ => {}
             }
+            if listening && compatible_version {
+                let id = self.local_id;
+                self.send(&Packet::Connect(id), service);
+            }
             self.state = ConnectionState::Establishing{attempts: 0, listening: listening, compatible_version: compatible_version, request_id: request_id};
         }
     }
@@ -161,7 +165,7 @@ impl Connection {
                         self.state = ConnectionState::Closed;
                         return;
                     }
-                    service.send(&Packet::Connect, self.address);
+                    service.send(&Packet::Connect(self.local_id), self.address);
                 }
             },
             _ => {},
