@@ -68,8 +68,8 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
         if let Err(_) = maybe_packet {return;}
         let packet = maybe_packet.unwrap();
         if self.service.debug_print_enabled {
-            format!("Packet from {:?}:\n", address);
-            format!("{:?}\n", packet);
+            println!("Packet from {:?}:", address);
+            println!("{:?}", packet);
         }
         if let Some(ref mut conn) = self.connections.get_mut(&address) {
             if conn.handle_incoming_packet(&packet, &mut self.service) {return;}
@@ -87,19 +87,22 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
                 self.service.send(&packets::Packet::StatusResponse(status_translator::translate(req)), address);
             },
             p@_ => {
-                if self.service.debug_print_enabled {format!("Unhandled.\n");}
+                if self.service.debug_print_enabled {println!("Unhandled.");}
             }
         }
-        if self.service.debug_print_enabled {format!("\n");}
+        if self.service.debug_print_enabled {println!("");}
     }
 
     pub fn enable_debug_print(&mut self) {
         self.service.debug_print_enabled = true;
+        println!("Debug printing enabled.");
     }
 
     pub fn connect(&mut self, address: net:: SocketAddr, request_id: u64) {
+        println!("Connect called.");
         let id = self.next_connection_id;
         self.next_connection_id += 1;
+        println!("New connection, id = {}", id);
         let mut conn = Connection::new(address, id);
         conn.establish(Some(request_id), &mut self.service);
         self.connections.insert(address, conn);
@@ -113,8 +116,8 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
 impl<'A, H: async::Handler> MioServiceProvider<'A, H> {
     pub fn send(&mut self, packet: &packets::Packet, address: net::SocketAddr)->bool {
         if self.debug_print_enabled {
-            format!("sending to {:?}:", address);
-            format!("{:?}\n\n", packet);
+            println!("sending to {:?}:", address);
+            println!("{:?}\n", packet);
         }
         if let Ok(size) = packets::encode_packet(packet, &mut self.outgoing_packet_buffer[4..]) {
             let checksum = crc32::checksum_castagnoli(&self.outgoing_packet_buffer[4..size]);
