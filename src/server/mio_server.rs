@@ -57,18 +57,21 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
     }
 
     fn got_packet(&mut self, size: usize, address: net::SocketAddr) {
+        if self.service.debug_print_enabled {println!("Incoming packet from {}:", address);}
         if size == 0 {return;}
         let maybe_packet = {
             let slice = &self.service.incoming_packet_buffer[0..size];
             let computed_checksum = crc32::checksum_castagnoli(&slice[4..]);
             let expected_checksum = BigEndian::read_u32(&slice[..4]);
-            if computed_checksum != expected_checksum {Err(packets::PacketDecodingError::Invalid)}
+            if computed_checksum != expected_checksum {
+                if self.service.debug_print_enabled {println!("Checksum invalid: {} versus {}", computed_checksum, expected_checksum);}
+                Err(packets::PacketDecodingError::Invalid)
+            }
             else {packets::decode_packet(&slice[4..])}
         };
         if let Err(_) = maybe_packet {return;}
         let packet = maybe_packet.unwrap();
         if self.service.debug_print_enabled {
-            println!("Packet from {:?}:", address);
             println!("{:?}", packet);
         }
         if let Some(ref mut conn) = self.connections.get_mut(&address) {
@@ -99,10 +102,9 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
     }
 
     pub fn connect(&mut self, address: net:: SocketAddr, request_id: u64) {
-        println!("Connect called.");
         let id = self.next_connection_id;
         self.next_connection_id += 1;
-        println!("New connection, id = {}", id);
+        if self.service.debug_print_enabled {println!("New connection, id = {}", id);}
         let mut conn = Connection::new(address, id);
         conn.establish(Some(request_id), &mut self.service);
         self.connections.insert(address, conn);
@@ -123,6 +125,7 @@ impl<'A, H: async::Handler> MioServiceProvider<'A, H> {
             let checksum = crc32::checksum_castagnoli(&self.outgoing_packet_buffer[4..size]);
             BigEndian::write_u32(&mut self.outgoing_packet_buffer[..4], checksum);
             if let Ok(Some(sent_bytes)) = self.socket.send_to(&self.outgoing_packet_buffer[..4+size], &address) {
+                if self.debug_print_enabled {println!("Sent {} bytes", sent_bytes);}
                 if sent_bytes == 4+size {return true;}
                 else {return false;}
             }
