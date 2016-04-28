@@ -238,13 +238,11 @@ An implementation must not place any semantinc meaning on anything in the heartb
 Packet format:
 
 ```
-echo = -3: i16 endpoint: i8 payload: u128
+echo = -3: i16 endpoint: u128 uuid: u128
 ```
 
 When an implementation receives a packet on the echo channel for a connected Fastnet peer, it must immediately resend (echo) the packet back to the sender without modification.
 
 This channnel exists for implementations wishing to attempt provision of round-trip estimation.  A conforming implementation must implement the echo channel but is not required to provide a round-trip estimation algorithm.
 
-Endpoint is to either be 1 or -1, depending on who is sending the echo.  The endpoint which made the connection request must use an endpoint value of 1.  The endpoint which received the request must use an endpoint value of -1.  Fastnet implementations must not respond to echoes they send as this would lead to an infinite loop of echoing, potentially eating all available bandwidth.
-
-It is intended that the `u128` payload be generated from a UUID.
+Endpoint is a value which must be generated from a UUID at connection startup and not changed thereafter.  uuid is a value which must be generated per-echo.  An implementation must not respond to echoes whose endpoint value matches their own, as this means that the other side of the connection sent it in response to a previous echo.
