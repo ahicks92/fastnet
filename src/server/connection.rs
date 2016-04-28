@@ -97,6 +97,9 @@ impl Connection {
         if let ConnectionState::Establishing{listening, compatible_version, request_id, ..} = self.state {
             if listening && compatible_version {
                 self.remote_id = id;
+                //The spec says that heartbeats don't count any packets that happen before full establishment.
+                self.sent_packets = 0;
+                self.received_packets = 0;
                 self.state = ConnectionState::Established;
                 service.handler.connected(self.local_id, request_id);
             }
