@@ -79,14 +79,14 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
             if conn.handle_incoming_packet(&packet, &mut self.service) {return;}
         }
         match packet {
-            packets ::Packet::Connect(id) => {
+            packets ::Packet::Connect(remote_id) => {
                 if let Some(c) = self.connections.get(&address) {
                     self.service.send(packets::Packet::Connected(c.local_id), address);
                     return;
                 }
                 let id = self.next_connection_id;
                 self.next_connection_id += 1;
-                let conn = Connection::new(address, id);
+                let conn = Connection::from_connection_request(address, id, remote_id);
                 self.connections.insert(address, conn);
                 self.service.send(packets::Packet::Connected(id), address);
             },

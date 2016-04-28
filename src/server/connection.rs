@@ -41,6 +41,18 @@ impl Connection {
         }
     }
 
+    pub fn from_connection_request(address: net::SocketAddr, local_id: u64, remote_id: u64)->Connection {
+        Connection {
+            state: ConnectionState::Established,
+            local_id: local_id,
+            remote_id: remote_id,
+            address: address,
+            sent_packets: 0,
+            received_packets: 0,
+            heartbeat_counter: 0,
+        }
+    }
+
 
     pub fn establish<H: async::Handler>(&mut self, request_id: Option<u64>, service: &mut MioServiceProvider<H>) {
         if let ConnectionState::Closed = self.state {
