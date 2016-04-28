@@ -24,7 +24,8 @@ pub struct Connection {
     pub sent_packets: u64,
     pub heartbeat_counter: u64,
     //For echoes.
-    pub endpoint_value: uuid::Uuid,
+    pub endpoint_id: uuid::Uuid,
+    pub roundtrip_estimator: RoundtripEstimator,
 }
 
 const MAX_STATUS_ATTEMPTS: u32 = 10;
@@ -41,21 +42,16 @@ impl Connection {
             sent_packets: 0,
             received_packets: 0,
             heartbeat_counter: 0,
-            endpoint_value: uuid::Uuid::new_v4(),
+            endpoint_id: uuid::Uuid::new_v4(),
+            roundtrip_estimator: RoundtripEstimator::new(5),
         }
     }
 
     pub fn from_connection_request(address: net::SocketAddr, local_id: u64, remote_id: u64)->Connection {
-        Connection {
-            state: ConnectionState::Established,
-            local_id: local_id,
-            remote_id: remote_id,
-            address: address,
-            sent_packets: 0,
-            received_packets: 0,
-            heartbeat_counter: 0,
-            endpoint_value: uuid::Uuid::new_v4(),
-        }
+        let mut conn = Connection::new(address, local_id);
+        conn.remote_id = remote_id;
+        conn.state = ConnectionState::Established;
+        conn
     }
 
 
@@ -80,7 +76,10 @@ impl Connection {
                 true
             },
             Packet::Echo{endpoint, uuid} => {
-                if endpoint != self.endpoint_value {self.send(packet, service);}
+                if endpoint != self.endpoint_id {
+                    self.send(packet, service);
+                    self.roundtrip_estimator.handle_echo(self.local_id, uuid, service);
+                }
                 true
             },
             Packet::Heartbeat{counter: c, sent: s, received: r} => {
@@ -187,6 +186,9 @@ impl Connection {
                     }
                     service.send(Packet::Connect(self.local_id), self.address);
                 }
+            },
+            ConnectionState::Established => {
+                self.roundtrip_estimator.tick(self.address, self.endpoint_id, service);
             },
             _ => {},
         }
