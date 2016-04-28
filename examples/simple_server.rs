@@ -15,7 +15,6 @@ fn main() {
         format!("Error: {:?}", what);
     }
     let mut serv = maybe_serv.unwrap();
-    serv.enable_debug_print();
     println!("Server is running.");
     loop {}
 }

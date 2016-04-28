@@ -7,6 +7,8 @@ extern crate byteorder;
 extern crate mio;
 extern crate crc;
 extern crate uuid;
+#[macro_use]
+extern crate log;
 
 mod packets;
 mod server;

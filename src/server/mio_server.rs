@@ -33,7 +33,6 @@ pub struct MioServiceProvider<'a, H: async::Handler> {
     pub incoming_packet_buffer: [u8; 1000],
     pub outgoing_packet_buffer: [u8; 1000],
     pub handler: H,
-    pub debug_print_enabled: bool,
 }
 
 pub struct MioHandler<'a, H: async::Handler> {
@@ -50,7 +49,6 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
                 incoming_packet_buffer: [0u8; 1000],
                 outgoing_packet_buffer: [0u8; 1000],
                 handler: handler,
-                debug_print_enabled: false,
             },
             connections: collections::HashMap::new(),
             next_connection_id: 1,
@@ -58,23 +56,20 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
     }
 
     fn got_packet(&mut self, size: usize, address: net::SocketAddr) {
-        if self.service.debug_print_enabled {println!("Incoming packet from {}:", address);}
         if size == 0 {return;}
         let maybe_packet = {
             let slice = &self.service.incoming_packet_buffer[0..size];
             let computed_checksum = crc32::checksum_castagnoli(&slice[4..]);
             let expected_checksum = BigEndian::read_u32(&slice[..4]);
             if computed_checksum != expected_checksum {
-                if self.service.debug_print_enabled {println!("Checksum invalid: {} versus {}", computed_checksum, expected_checksum);}
+                debug!("Checksum invalid: {} versus {}", computed_checksum, expected_checksum);
                 Err(packets::PacketDecodingError::Invalid)
             }
             else {packets::decode_packet(&slice[4..])}
         };
         if let Err(_) = maybe_packet {return;}
         let packet = maybe_packet.unwrap();
-        if self.service.debug_print_enabled {
-            println!("{:?}", packet);
-        }
+        debug!("Incoming from {:?}: {:?}", address, packet);
         if let Some(ref mut conn) = self.connections.get_mut(&address) {
             if conn.handle_incoming_packet(&packet, &mut self.service) {return;}
         }
@@ -94,21 +89,15 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
                 self.service.send(packets::Packet::StatusResponse(status_translator::translate(req)), address);
             },
             p@_ => {
-                if self.service.debug_print_enabled {println!("Unhandled.");}
+                debug!("Previous packet was unhandled.");
             }
         }
-        if self.service.debug_print_enabled {println!("");}
-    }
-
-    pub fn enable_debug_print(&mut self) {
-        self.service.debug_print_enabled = true;
-        println!("Debug printing enabled.");
     }
 
     pub fn connect(&mut self, address: net:: SocketAddr, request_id: u64) {
         let id = self.next_connection_id;
         self.next_connection_id += 1;
-        if self.service.debug_print_enabled {println!("New connection, id = {}", id);}
+        info!("New connection, id = {}", id);
         let mut conn = Connection::new(address, id);
         conn.establish(Some(request_id), &mut self.service);
         self.connections.insert(address, conn);
@@ -121,10 +110,7 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
 
 impl<'A, H: async::Handler> MioServiceProvider<'A, H> {
     pub fn send<P: Borrow<packets::Packet>>(&mut self, packet: P, address: net::SocketAddr)->bool {
-        if self.debug_print_enabled {
-            println!("sending to {:?}:", address);
-            println!("{:?}\n", packet.borrow());
-        }
+        debug!("sending to {:?}: {:?}", address, packet.borrow());
         if let Ok(size) = packets::encode_packet(packet, &mut self.outgoing_packet_buffer[4..]) {
             let checksum = crc32::checksum_castagnoli(&self.outgoing_packet_buffer[4..4+size]);
             BigEndian::write_u32(&mut self.outgoing_packet_buffer[..4], checksum);

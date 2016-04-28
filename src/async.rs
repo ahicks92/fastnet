@@ -28,13 +28,6 @@ impl<H: Handler+Send+'static> Server<H> {
         Ok(Server{server: s})
     }
 
-    /**For debugging, as this implementation is currently alpha.
-    
-    This will go away, but enables printing sent/received packets to stdout, among other things.*/
-    pub fn enable_debug_print(&mut self) {
-        self.server.with(|s| s.enable_debug_print());
-    }
-
     /**Schedule a connection request.
     
     This will cause the associated handler to be passed the result with the specified request ID.*/
