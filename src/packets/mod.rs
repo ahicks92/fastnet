@@ -9,6 +9,8 @@ mod encoder_tests;
 mod decoder;
 mod decoder_tests;
 
+use uuid;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Packet {
     //Status request and response (channel -1)
@@ -23,7 +25,7 @@ pub enum Packet {
     //Heartbeat (channel -2).
     Heartbeat{counter: u64, sent: u64, received: u64},
 
-    Echo(i16),
+    Echo{endpoint: i8, uuid: uuid::Uuid},
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

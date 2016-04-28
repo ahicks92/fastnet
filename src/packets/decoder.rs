@@ -2,6 +2,7 @@ use super::*;
 use std::io::{self, Read};
 use std::cmp;
 use byteorder::{BigEndian, ReadBytesExt};
+use uuid;
 
 #[derive(Debug)]
 pub enum PacketDecodingError {
@@ -70,8 +71,9 @@ impl Decodable for Packet {
                 return Ok(Heartbeat{counter: count, sent: sent_packets, received: received_packets});
             },
             ECHO_CHANNEL => {
-                let value = try!(i16::decode(source));
-                return Ok(Echo(value));
+                let endpoint = try!(i8::decode(source));
+                let uuid = try!(uuid::Uuid::decode(source));
+                return Ok(Echo{endpoint: endpoint, uuid: uuid});
             },
             _ => {return Err(Invalid)},
         }
@@ -208,6 +210,18 @@ impl Decodable for String {
         else {
             return Err(PacketDecodingError::Invalid);
         }
+    }
+}
+
+impl Decodable for uuid::Uuid {
+    type Output = uuid::Uuid;
+
+    fn decode(source: &mut PacketReader)->Result<Self::Output, PacketDecodingError> {
+        let data = &source.slice[source.index..];
+        if data.len() < 16 {return Err(PacketDecodingError::TooSmall);}
+        let uuid = try!(uuid::Uuid::from_bytes(&data[..16]).or(Err(PacketDecodingError::Invalid)));
+        source.index += 16;
+        return Ok(uuid);
     }
 }
 

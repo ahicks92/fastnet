@@ -6,6 +6,7 @@ This is the low-level API.  If your goal is extremely high-performance usage, th
 extern crate byteorder;
 extern crate mio;
 extern crate crc;
+extern crate uuid;
 
 mod packets;
 mod server;

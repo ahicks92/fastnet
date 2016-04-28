@@ -1,5 +1,6 @@
 use super::*;
 use byteorder::{BigEndian, WriteBytesExt};
+use uuid;
 use std::io::{self, Write};
 use std::cmp;
 use std::borrow::{Borrow};
@@ -86,9 +87,10 @@ impl Encodable for Packet {
                 try!(sent.encode(destination));
                 try!(received.encode(destination));
             },
-            Packet::Echo(value) => {
+            Packet::Echo{endpoint, uuid} => {
                 try!(ECHO_CHANNEL.encode(destination));
-                try!(value.encode(destination));
+                try!(endpoint.encode(destination));
+                try!(uuid.encode(destination));
             },
         }
     Ok(())
@@ -144,6 +146,7 @@ impl Encodable for bool {
         else {0u8.encode(destination)}
     }
 }
+
 impl Encodable for i8 {
     fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
         try!(destination.write_i8(*self).or(Err(PacketEncodingError::TooLarge)));
@@ -220,6 +223,13 @@ impl Encodable for str {
 impl Encodable for String {
     fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
         encode_string_slice(self.as_bytes(), destination)
+    }
+}
+
+impl Encodable for uuid::Uuid {
+    fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
+        try!(destination.write_all(self.as_bytes()).or(Err(PacketEncodingError::TooLarge)));
+        Ok(())
     }
 }
 

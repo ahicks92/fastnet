@@ -22,6 +22,8 @@ pub struct Connection {
     pub received_packets: u64,
     pub sent_packets: u64,
     pub heartbeat_counter: u64,
+    //For echoes.
+    pub endpoint_value: i8,
 }
 
 const MAX_STATUS_ATTEMPTS: u32 = 10;
@@ -38,6 +40,7 @@ impl Connection {
             sent_packets: 0,
             received_packets: 0,
             heartbeat_counter: 0,
+            endpoint_value: 1,
         }
     }
 
@@ -50,6 +53,7 @@ impl Connection {
             sent_packets: 0,
             received_packets: 0,
             heartbeat_counter: 0,
+            endpoint_value: -1,
         }
     }
 
@@ -74,8 +78,8 @@ impl Connection {
                 self.handle_status_response(resp, service);
                 true
             },
-            Packet::Echo(id) => {
-                self.send(packet, service);
+            Packet::Echo{endpoint, uuid} => {
+                if endpoint != self.endpoint_value {self.send(packet, service);}
                 true
             },
             Packet::Heartbeat{counter: c, sent: s, received: r} => {
