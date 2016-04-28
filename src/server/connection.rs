@@ -4,6 +4,7 @@ use super::super::async;
 use super::super::status_translator;
 use std::net;
 use std::borrow::{Borrow};
+use uuid;
 
 #[derive(Debug, Copy, Clone)]
 pub enum ConnectionState {
@@ -23,7 +24,7 @@ pub struct Connection {
     pub sent_packets: u64,
     pub heartbeat_counter: u64,
     //For echoes.
-    pub endpoint_value: i8,
+    pub endpoint_value: uuid::Uuid,
 }
 
 const MAX_STATUS_ATTEMPTS: u32 = 10;
@@ -40,7 +41,7 @@ impl Connection {
             sent_packets: 0,
             received_packets: 0,
             heartbeat_counter: 0,
-            endpoint_value: 1,
+            endpoint_value: uuid::Uuid::new_v4(),
         }
     }
 
@@ -53,7 +54,7 @@ impl Connection {
             sent_packets: 0,
             received_packets: 0,
             heartbeat_counter: 0,
-            endpoint_value: -1,
+            endpoint_value: uuid::Uuid::new_v4(),
         }
     }
 

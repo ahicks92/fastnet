@@ -71,7 +71,7 @@ impl Decodable for Packet {
                 return Ok(Heartbeat{counter: count, sent: sent_packets, received: received_packets});
             },
             ECHO_CHANNEL => {
-                let endpoint = try!(i8::decode(source));
+                let endpoint = try!(uuid::Uuid::decode(source));
                 let uuid = try!(uuid::Uuid::decode(source));
                 return Ok(Echo{endpoint: endpoint, uuid: uuid});
             },

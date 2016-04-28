@@ -25,7 +25,7 @@ pub enum Packet {
     //Heartbeat (channel -2).
     Heartbeat{counter: u64, sent: u64, received: u64},
 
-    Echo{endpoint: i8, uuid: uuid::Uuid},
+    Echo{endpoint: uuid::Uuid, uuid: uuid::Uuid},
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
