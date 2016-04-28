@@ -56,4 +56,10 @@ pub trait Handler {
 
     fn request_failed(&mut self, request_id: u64, error: Error) {
     }
+
+    /**Fastnet has completed a roundtrip estimate for a peer.
+    
+    The time provided to this function is in milliseconds.*/
+    fn roundtrip_estimate(&mut self, id: u64, estimate: u32) {
+    }
 }

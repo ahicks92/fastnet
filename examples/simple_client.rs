@@ -1,4 +1,5 @@
 extern crate fastnet;
+extern crate env_logger;
 use std::net::{ToSocketAddrs};
 
 #[derive(Default)]
@@ -8,6 +9,7 @@ impl fastnet::Handler for EventHandler {
 }
 
 fn main() {
+    env_logger::init().unwrap();
     let mut i = "127.0.0.1:10000".to_socket_addrs().unwrap();
     let server_addr = i.next().unwrap();
     i = "0.0.0.0:11000".to_socket_addrs().unwrap();
