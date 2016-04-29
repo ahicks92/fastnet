@@ -54,7 +54,6 @@ impl Connection {
         conn
     }
 
-
     pub fn establish<H: async::Handler>(&mut self, request_id: Option<u64>, service: &mut MioServiceProvider<H>) {
         if let ConnectionState::Closed = self.state {
             self.state = ConnectionState::Establishing{listening: false, compatible_version: false, attempts: 0, request_id: request_id};
@@ -78,6 +77,8 @@ impl Connection {
             Packet::Echo{endpoint, uuid} => {
                 if endpoint != self.endpoint_id {
                     self.send(packet, service);
+                }
+                else {
                     self.roundtrip_estimator.handle_echo(self.local_id, uuid, service);
                 }
                 true
