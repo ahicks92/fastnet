@@ -63,3 +63,35 @@ pub trait Handler {
     fn roundtrip_estimate(&mut self, id: u64, estimate: u32) {
     }
 }
+
+///This will go away.
+#[derive(Default, Debug)]
+pub struct PrintingHandler;
+
+impl PrintingHandler {
+    pub fn new()->PrintingHandler {
+        PrintingHandler::default()
+    }
+}
+
+impl Handler for PrintingHandler {
+    fn connected(&mut self, id: u64, request_id: Option<u64>) {
+        println!("Connected: {:?} {:?}", id, request_id);
+    }
+
+    fn disconnected(&mut self, id: u64, request_id: Option<u64>) {
+        println!("Disconnected: {:?} {:?}", id, request_id);
+    }
+
+    fn incoming_message(&mut self, id: u64, channel: u16, payload: &[u8]) {
+        println!("Incoming message: {:?} {:?} {:?}", id, channel, payload);
+    }
+
+    fn request_failed(&mut self, request_id: u64, error: Error) {
+        println!("Request failure: {:?} {:?}", request_id, error);
+    }
+
+    fn roundtrip_estimate(&mut self, id: u64, estimate: u32) {
+        println!("Roundtrip estimate: {:?} {:?}", id, estimate);
+    }
+}
