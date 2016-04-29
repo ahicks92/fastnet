@@ -84,6 +84,7 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
                 let conn = Connection::from_connection_request(address, id, remote_id);
                 self.connections.insert(address, conn);
                 self.service.send(packets::Packet::Connected(id), address);
+                self.service.handler.connected(id, None);
             },
             packets::Packet::StatusRequest(ref req) => {
                 self.service.send(packets::Packet::StatusResponse(status_translator::translate(req)), address);
