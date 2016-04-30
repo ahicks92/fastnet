@@ -39,6 +39,8 @@ pub struct MioHandler<'a, H: async::Handler> {
     service: MioServiceProvider<'a, H>,
     connections: collections::HashMap<net::SocketAddr, Connection>,
     next_connection_id: u64,
+    //This is a workaround because maps don't have retain.
+    connection_key_vector: Vec<net::SocketAddr>,
 }
 
 impl<'a, H: async::Handler> MioHandler<'a, H> {
@@ -52,6 +54,7 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
             },
             connections: collections::HashMap::new(),
             next_connection_id: 1,
+            connection_key_vector: Vec::default(),
         }
     }
 
@@ -149,7 +152,14 @@ impl<'a, H: async::Handler+Send> mio::Handler for MioHandler<'a, H> {
                 200
             },
             TimeoutTypes::Timeout1000 => {
-                for i in self.connections.iter_mut() {i.1.tick1000(&mut self.service);}
+                self.connection_key_vector.clear();
+                for i in self.connections.iter_mut() {
+                    i.1.tick1000(&mut self.service);
+                    if i.1.timed_out() {self.connection_key_vector.push(*i.0);}
+                }
+                for i in self.connection_key_vector.iter() {
+                    self.connections.remove(&i);
+                }
                 1000
             },
         };

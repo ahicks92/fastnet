@@ -4,6 +4,7 @@ use super::super::async;
 use super::super::status_translator;
 use std::net;
 use std::borrow::{Borrow};
+use std::time;
 use uuid;
 
 #[derive(Debug, Copy, Clone)]
@@ -26,6 +27,8 @@ pub struct Connection {
     //For echoes.
     pub endpoint_id: uuid::Uuid,
     pub roundtrip_estimator: RoundtripEstimator,
+    //For timing out.
+    pub last_received_packet_time: time::Instant,
 }
 
 const MAX_STATUS_ATTEMPTS: u32 = 10;
@@ -44,6 +47,7 @@ impl Connection {
             heartbeat_counter: 0,
             endpoint_id: uuid::Uuid::new_v4(),
             roundtrip_estimator: RoundtripEstimator::new(5),
+            last_received_packet_time: time::Instant::now(),
         }
     }
 
@@ -68,7 +72,8 @@ impl Connection {
     }
 
     pub fn handle_incoming_packet<H: async::Handler>(&mut self, packet: &Packet, service: &mut MioServiceProvider<H>)->bool {
-        self.received_packets += 1; //Always.
+        self.received_packets += 1;
+        self.last_received_packet_time = time::Instant::now();
         match *packet {
             Packet::StatusResponse(ref resp) => {
                 self.handle_status_response(resp, service);
@@ -193,5 +198,9 @@ impl Connection {
             },
             _ => {},
         }
+    }
+
+    pub fn timed_out(&self)->bool {
+        self.last_received_packet_time.duration_since(time::Instant::now()).as_secs() > 10
     }
 }
