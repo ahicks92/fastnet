@@ -207,7 +207,12 @@ This specification suggests "unspecified error" as a reasonable default for situ
 
 Servers must ignore any packets not involved in an active connection.
 
-##The Heartbeat Channel and Connection Breaking##
+##Connection Closing and Breaking##
+
+TODO: define packets and intentional closing logic (this is awaiting a coming refactor involving identification of connections by UUID).
+
+If either end of a fastnet connection does not receive any packets from the other end of the connection for a timeout period  then it must consider the connection broken.  This period must be configurable by the user and should default to 10 seconds.  This period must not go below 2 seconds.
+##The Heartbeat Channel##
 
 Packet format:
 
@@ -226,8 +231,6 @@ A heartbeat is composed of three pieces of information:
 - A 64-bit integer specifying how many packets this end of the connection has received from the other end of the connection.
 
 Both parties involved in a fastnet connection must send a heartbeat to each other  once a second.
-
-If either end of a fastnet connection does not receive any packets from the other end of the connection for a timeout period  then it must consider the connection broken.  This period must be configurable by the user and should default to 10 seconds.  This period must not go below 2 seconds.
 
 Heartbeat packet counts do not include any packets exchanged before the establishment of a connection.
 
