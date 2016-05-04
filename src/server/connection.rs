@@ -200,7 +200,4 @@ impl Connection {
         }
     }
 
-    pub fn get_last_received_packet_time(&self)->time::Instant {
-        self.last_received_packet_time
-    }
 }

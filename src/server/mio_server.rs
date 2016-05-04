@@ -163,7 +163,10 @@ impl<'a, H: async::Handler+Send> mio::Handler for MioHandler<'a, H> {
                 let now = time::Instant::now();
                 for i in self.connections.iter_mut() {
                     i.1.tick1000(&mut self.service);
-                    if now.duration_since(i.1.get_last_received_packet_time()) > self.connection_timeout_duration {self.connection_key_vector.push(*i.0);}
+                    if now.duration_since(i.1.last_received_packet_time) > self.connection_timeout_duration {
+                        self.connection_key_vector.push(*i.0);
+                        self.service.handler.disconnected(i.1.local_id, None);
+                    }
                 }
                 for i in self.connection_key_vector.iter() {
                     self.connections.remove(&i);
