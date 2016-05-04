@@ -200,7 +200,7 @@ impl Connection {
         }
     }
 
-    pub fn timed_out(&self)->bool {
-        self.last_received_packet_time.duration_since(time::Instant::now()).as_secs() > 10
+    pub fn get_last_received_packet_time(&self)->time::Instant {
+        self.last_received_packet_time
     }
 }

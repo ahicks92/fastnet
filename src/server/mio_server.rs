@@ -9,6 +9,7 @@ use std::net;
 use std::thread;
 use std::io;
 use std::sync::mpsc;
+use std::time;
 use std::borrow::{Borrow};
 use mio;
 use mio::udp;
@@ -39,6 +40,7 @@ pub struct MioHandler<'a, H: async::Handler> {
     service: MioServiceProvider<'a, H>,
     connections: collections::HashMap<net::SocketAddr, Connection>,
     next_connection_id: u64,
+    connection_timeout_duration: time::Duration,
     //This is a workaround because maps don't have retain.
     connection_key_vector: Vec<net::SocketAddr>,
 }
@@ -55,6 +57,7 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
             connections: collections::HashMap::new(),
             next_connection_id: 1,
             connection_key_vector: Vec::default(),
+            connection_timeout_duration: time::Duration::from_secs(10),
         }
     }
 
@@ -110,6 +113,10 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
     pub fn disconnect(&mut self, id: u64, request_id: u64) {
         //todo: fill this out.
     }
+
+    pub fn configure_timeout(&mut self, timeout_ms: u64) {
+        self.connection_timeout_duration = time::Duration::from_millis(timeout_ms);
+    }
 }
 
 impl<'A, H: async::Handler> MioServiceProvider<'A, H> {
@@ -153,9 +160,10 @@ impl<'a, H: async::Handler+Send> mio::Handler for MioHandler<'a, H> {
             },
             TimeoutTypes::Timeout1000 => {
                 self.connection_key_vector.clear();
+                let now = time::Instant::now();
                 for i in self.connections.iter_mut() {
                     i.1.tick1000(&mut self.service);
-                    if i.1.timed_out() {self.connection_key_vector.push(*i.0);}
+                    if now.duration_since(i.1.get_last_received_packet_time()) > self.connection_timeout_duration {self.connection_key_vector.push(*i.0);}
                 }
                 for i in self.connection_key_vector.iter() {
                     self.connections.remove(&i);

@@ -39,6 +39,12 @@ impl<H: Handler+Send+'static> Server<H> {
     pub fn disconnect(&mut self, id: u64, request_id: u64) {
         self.server.with(move |s| s.disconnect(id, request_id));
     }
+
+    /**Configure the timeout.
+    The value to this function is in MS.  Most applications should leave this alone.  The default of 10 seconds is sufficient.*/
+    pub fn configure_timeout(&mut self, timeout_ms: u64) {
+        self.server.with(move |s| s.configure_timeout(timeout_ms));
+    }
 }
 
 /**An event handler.
