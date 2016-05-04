@@ -211,7 +211,7 @@ Servers must ignore any packets not involved in an active connection.
 
 TODO: define packets and intentional closing logic (this is awaiting a coming refactor involving identification of connections by UUID).
 
-If either end of a fastnet connection does not receive any packets from the other end of the connection for a timeout period  then it must consider the connection broken.  This period must be configurable by the user on either an implementation-wide or connection-specific basis and should default to 10 seconds.  This period must not go below 2 seconds.
+If either end of a fastnet connection does not receive any packets from the other end of the connection for a timeout period  then it must consider the connection broken.  This period must be configurable by the user on either an implementation-wide or connection-specific basis and should default to 10 seconds.
 
 ##The Heartbeat Channel##
 
