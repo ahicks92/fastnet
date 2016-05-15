@@ -31,8 +31,8 @@ impl<H: Handler+Send+'static> Server<H> {
     }
 
     /**Schedule a connection request.
-    
-    This will cause the associated handler to be passed the result with the specified request ID.*/
+
+This will cause the associated handler to be passed the result with the specified request ID.*/
     pub fn connect(&mut self, addr: net::SocketAddr, request_id: u64) {
         self.server.with(move |s| s.connect(addr, request_id));
     }
@@ -66,8 +66,8 @@ pub trait Handler {
     }
 
     /**Fastnet has completed a roundtrip estimate for a peer.
-    
-    The time provided to this function is in milliseconds.*/
+
+The time provided to this function is in milliseconds.*/
     fn roundtrip_estimate(&mut self, id: uuid::Uuid, estimate: u32) {
     }
 }
