@@ -1,5 +1,7 @@
 use std::{result, io, net};
 use server;
+use uuid;
+
 ///Represents a Fastnet error.
 #[derive(Debug)]
 pub enum Error {
@@ -36,7 +38,7 @@ impl<H: Handler+Send+'static> Server<H> {
     }
 
     /**Disconnect from a peer with the specified ID.*/
-    pub fn disconnect(&mut self, id: u64, request_id: u64) {
+    pub fn disconnect(&mut self, id: uuid::Uuid, request_id: u64) {
         self.server.with(move |s| s.disconnect(id, request_id));
     }
 
@@ -51,13 +53,13 @@ impl<H: Handler+Send+'static> Server<H> {
 
 The methods in this trait are called in a thread which is running in the background, not on the main thread.  None of them should ever block.*/
 pub trait Handler {
-    fn connected(&mut self, id: u64, request_id: Option<u64>) {
+    fn connected(&mut self, id: uuid::Uuid, request_id: Option<u64>) {
     }
 
-    fn disconnected(&mut self, id: u64, request_id: Option<u64>) {
+    fn disconnected(&mut self, id: uuid::Uuid, request_id: Option<u64>) {
     }
 
-    fn incoming_message(&mut self, id: u64, channel: u16, payload: &[u8]) {
+    fn incoming_message(&mut self, id: uuid::Uuid, channel: u16, payload: &[u8]) {
     }
 
     fn request_failed(&mut self, request_id: u64, error: Error) {
@@ -66,7 +68,7 @@ pub trait Handler {
     /**Fastnet has completed a roundtrip estimate for a peer.
     
     The time provided to this function is in milliseconds.*/
-    fn roundtrip_estimate(&mut self, id: u64, estimate: u32) {
+    fn roundtrip_estimate(&mut self, id: uuid::Uuid, estimate: u32) {
     }
 }
 
@@ -81,15 +83,15 @@ impl PrintingHandler {
 }
 
 impl Handler for PrintingHandler {
-    fn connected(&mut self, id: u64, request_id: Option<u64>) {
+    fn connected(&mut self, id: uuid::Uuid, request_id: Option<u64>) {
         println!("Connected: {:?} {:?}", id, request_id);
     }
 
-    fn disconnected(&mut self, id: u64, request_id: Option<u64>) {
+    fn disconnected(&mut self, id: uuid::Uuid, request_id: Option<u64>) {
         println!("Disconnected: {:?} {:?}", id, request_id);
     }
 
-    fn incoming_message(&mut self, id: u64, channel: u16, payload: &[u8]) {
+    fn incoming_message(&mut self, id: uuid::Uuid, channel: u16, payload: &[u8]) {
         println!("Incoming message: {:?} {:?} {:?}", id, channel, payload);
     }
 
@@ -97,7 +99,7 @@ impl Handler for PrintingHandler {
         println!("Request failure: {:?} {:?}", request_id, error);
     }
 
-    fn roundtrip_estimate(&mut self, id: u64, estimate: u32) {
+    fn roundtrip_estimate(&mut self, id: uuid::Uuid, estimate: u32) {
         println!("Roundtrip estimate: {:?} {:?}", id, estimate);
     }
 }

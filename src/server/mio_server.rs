@@ -13,6 +13,7 @@ use std::time;
 use std::borrow::{Borrow};
 use mio;
 use mio::udp;
+use uuid;
 
 const SOCKET_TOKEN: mio::Token = mio::Token(0);
 
@@ -39,7 +40,6 @@ pub struct MioServiceProvider<'a, H: async::Handler> {
 pub struct MioHandler<'a, H: async::Handler> {
     service: MioServiceProvider<'a, H>,
     connections: collections::HashMap<net::SocketAddr, Connection>,
-    next_connection_id: u64,
     connection_timeout_duration: time::Duration,
     //This is a workaround because maps don't have retain.
     connection_key_vector: Vec<net::SocketAddr>,
@@ -55,7 +55,6 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
                 handler: handler,
             },
             connections: collections::HashMap::new(),
-            next_connection_id: 1,
             connection_key_vector: Vec::default(),
             connection_timeout_duration: time::Duration::from_secs(10),
         }
@@ -80,14 +79,12 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
             if conn.handle_incoming_packet(&packet, &mut self.service) {return;}
         }
         match packet {
-            packets ::Packet::Connect(remote_id) => {
+            packets ::Packet::Connect(id) => {
                 if let Some(c) = self.connections.get(&address) {
-                    self.service.send(packets::Packet::Connected(c.local_id), address);
+                    self.service.send(packets::Packet::Connected(c.id), address);
                     return;
                 }
-                let id = self.next_connection_id;
-                self.next_connection_id += 1;
-                let conn = Connection::from_connection_request(address, id, remote_id);
+                let conn = Connection::from_connection_request(address, id);
                 self.connections.insert(address, conn);
                 self.service.send(packets::Packet::Connected(id), address);
                 self.service.handler.connected(id, None);
@@ -102,15 +99,14 @@ impl<'a, H: async::Handler> MioHandler<'a, H> {
     }
 
     pub fn connect(&mut self, address: net:: SocketAddr, request_id: u64) {
-        let id = self.next_connection_id;
-        self.next_connection_id += 1;
+        let id = uuid::Uuid::new_v4();
         info!("New connection, id = {}", id);
         let mut conn = Connection::new(address, id);
         conn.establish(Some(request_id), &mut self.service);
         self.connections.insert(address, conn);
     }
 
-    pub fn disconnect(&mut self, id: u64, request_id: u64) {
+    pub fn disconnect(&mut self, id: uuid::Uuid, request_id: u64) {
         //todo: fill this out.
     }
 
@@ -165,7 +161,7 @@ impl<'a, H: async::Handler+Send> mio::Handler for MioHandler<'a, H> {
                     i.1.tick1000(&mut self.service);
                     if now.duration_since(i.1.last_received_packet_time) > self.connection_timeout_duration {
                         self.connection_key_vector.push(*i.0);
-                        self.service.handler.disconnected(i.1.local_id, None);
+                        self.service.handler.disconnected(i.1.id, None);
                     }
                 }
                 for i in self.connection_key_vector.iter() {

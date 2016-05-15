@@ -3,13 +3,12 @@
 This module does not handle the checksum.  If it did, it would be incredibly difficult to write Fastnet tests.*/
 pub use self::encoder::*;
 pub use self::decoder::*;
+use uuid;
 
 mod encoder;
 mod encoder_tests;
 mod decoder;
 mod decoder_tests;
-
-use uuid;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Packet {
@@ -18,8 +17,8 @@ pub enum Packet {
     StatusResponse(StatusResponse),
 
     //Connection handshake (also channel -1).
-    Connect(u64),
-    Connected(u64),
+    Connect(uuid::Uuid),
+    Connected(uuid::Uuid),
     Aborted(String),
     
     //Heartbeat (channel -2).

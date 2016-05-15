@@ -56,7 +56,7 @@ impl RoundtripEstimator {
         }
     }
 
-    pub fn handle_echo<H: async::Handler>(&mut self, connection_id: u64, echo_id: uuid::Uuid, service: &mut MioServiceProvider<H>) {
+    pub fn handle_echo<H: async::Handler>(&mut self, connection_id: uuid::Uuid, echo_id: uuid::Uuid, service: &mut MioServiceProvider<H>) {
         if let Some(&instant) = self.expected_echoes.get(&echo_id) {
             let dur = time::Instant::now().duration_since(instant);
             let dur_ms: u64 = dur.as_secs()*1000+dur.subsec_nanos() as u64/1000000u64;

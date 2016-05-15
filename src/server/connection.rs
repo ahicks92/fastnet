@@ -18,8 +18,7 @@ pub enum ConnectionState {
 #[derive(Debug)]
 pub struct Connection {
     pub state: ConnectionState,
-    pub local_id: u64,
-    pub remote_id: u64,
+    pub id: uuid::Uuid,
     pub address: net::SocketAddr,
     pub received_packets: u64,
     pub sent_packets: u64,
@@ -36,11 +35,10 @@ const MAX_CONNECTION_ATTEMPTS:u32 = 25; //5000 ms divided by 200 ms per attempt,
 
 impl Connection {
 
-    pub fn new(address: net::SocketAddr, local_id: u64)->Connection {
+    pub fn new(address: net::SocketAddr, id: uuid::Uuid)->Connection {
         Connection {
             state: ConnectionState::Closed,
-            local_id: local_id,
-            remote_id: 0,
+            id: id,
             address: address,
             sent_packets: 0,
             received_packets: 0,
@@ -51,9 +49,8 @@ impl Connection {
         }
     }
 
-    pub fn from_connection_request(address: net::SocketAddr, local_id: u64, remote_id: u64)->Connection {
-        let mut conn = Connection::new(address, local_id);
-        conn.remote_id = remote_id;
+    pub fn from_connection_request(address: net::SocketAddr, id: uuid::Uuid)->Connection {
+        let mut conn = Connection::new(address, id);
         conn.state = ConnectionState::Established;
         conn
     }
@@ -84,7 +81,7 @@ impl Connection {
                     self.send(packet, service);
                 }
                 else {
-                    self.roundtrip_estimator.handle_echo(self.local_id, uuid, service);
+                    self.roundtrip_estimator.handle_echo(self.id, uuid, service);
                 }
                 true
             },
@@ -103,15 +100,16 @@ impl Connection {
         }
     }
 
-    fn handle_connected<H: async::Handler>(&mut self, id: u64, service: &mut MioServiceProvider<H>) {
+    fn handle_connected<H: async::Handler>(&mut self, id: uuid::Uuid, service: &mut MioServiceProvider<H>) {
+        //per the spec, ignore any connected packet that doesn't echo our id.
+        if id != self.id {return;}
         if let ConnectionState::Establishing{listening, compatible_version, request_id, ..} = self.state {
             if listening && compatible_version {
-                self.remote_id = id;
                 //The spec says that heartbeats don't count any packets that happen before full establishment.
                 self.sent_packets = 0;
                 self.received_packets = 0;
                 self.state = ConnectionState::Established;
-                service.handler.connected(self.local_id, request_id);
+                service.handler.connected(self.id, request_id);
             }
         }
         //Otherwise, we shouldn't be receiving this yet so just drop it.
@@ -149,7 +147,7 @@ impl Connection {
                 _ => {}
             }
             if listening && compatible_version {
-                let id = self.local_id;
+                let id = self.id;
                 self.send(Packet::Connect(id), service);
             }
             self.state = ConnectionState::Establishing{attempts: 0, listening: listening, compatible_version: compatible_version, request_id: request_id};
@@ -190,7 +188,7 @@ impl Connection {
                         self.state = ConnectionState::Closed;
                         return;
                     }
-                    service.send(Packet::Connect(self.local_id), self.address);
+                    service.send(Packet::Connect(self.id), self.address);
                 }
             },
             ConnectionState::Established => {
