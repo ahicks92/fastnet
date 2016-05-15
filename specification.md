@@ -33,7 +33,6 @@ The key words "must", "must not", "required", "shall", "shall not", "should", "s
 
 A client refers to an entity who requests a connection from a server.
 A server refers to an entity capable of accepting multiple connections.
-All entities involved in Fastnet are either a client or a server, never both.
 
 A sender is an entity capable of sending messages.
 A receiver is an entity capable of receiving messages.
@@ -55,7 +54,7 @@ This specification uses a mostly self-explanatory language to specify packet for
 
 - Nonterminals are written in the form `<example>`.  Terminals are written in the form <example: i8`.
 
-- The recognized type suffixes are `u`, `i`, `s`, and `p`.  A terminal is followed by a `:` and a type suffix.
+- The recognized type suffixes are `u`, `i`, `s`, `p`, and `id`.  A terminal is followed by a `:` and a type suffix.
 
 - `u` and `i` represent unsigned and signed integers stored in network byte order using twos complement.  Each is followed by a bit count, for example `u8` or `i16`.  The bit count must be a multiple of 8.  All math on integer types must be performed mod `2^n` where n is the number of bits in the integer (put another way, math wraps).  0 is considered positive.
 
@@ -66,6 +65,8 @@ This specification uses a mostly self-explanatory language to specify packet for
 - `a` is like `s`, but the string must be ascii.
 
 - `p` stands for payload, an arbitrary sequence of bytes.  `p` segments will be described further by the specification.  They are usually the last field of a packet.
+
+- `id` means a 16-byte identifier computed as A UUID.
 
 - Space means concatenate without padding.  For example, `part1:i8 part2:i8` is two 1-byte signed integers without padding.
 
@@ -158,17 +159,12 @@ An implementation must continue to respond to queries even after a connection is
 packets:
 
 ```
-connect = -1:i16 2:u8 id: u64
-connected = -1:i16 3:u8 connection_identifier:u64
+connect = -1:i16 2:u8 id: id
+connected = -1:i16 3:u8 id: id
 aborted = -1:i16 4:u8 error:s
 ```
 
 With the exception of UDP hole-punching, connections are established using the following algorithm.  UDP hole-punching is described elsewhere in this specification.
-
-An implementation wishing to connect to another implementation must be aware of two identifiers: the local identifier and the remote identifier.
-Local identifiers are generated before the beginning of a connection.
-
-Remote identifers are provided by the implementation to whom the connection is being made.
 
 A Fastnet server must allow only one connection from a specific IP and port.
 
@@ -176,30 +172,27 @@ The following must always take place on channel -1 before a connection is consid
 
 To begin a connection, a client must:
 
-1. Generate a local id.  This id will be used to identify the connection to the user.
+1. Generate an id.  This id will be used to identify the connection to the user.
 
 2. Use the `fastnet_query` from the status query section to determine if a fastnet implementation is listening.  An implementation must make no more than 10 attempts before aborting.
 
 3. Use the `version_query` to determine that the implementations are compatible.  Again, an implementation must make no more than 10 attempts before aborting.
 
-4. Send the connect packet which must contain the local id.  This becomes the remote id on the implementation that the client is connecting to.
+4. Send the connect packet, containing the id.
 
-5. Begin waiting for either the connected packet or the aborted packet with a timeout of 5000 MS.  The client must resend the connect packet every 200 MS during this process.
+5. Begin waiting for either the connected packet or the aborted packet with a timeout of 5000 MS.  The client must resend the connect packet every 200 MS during this process.  If the connected packet does not contain an ID matching the ID we sent, ignore it.
 
-If the client receives the connected packet, it must parse the connection id, notify the application that the connection has been established, and begin processing packets.
+If the client receives the connected packet, it must notify the application that the connection has been established and begin processing packets.
 The client must disregard all other packets including queries until it manages to receive the connected packet.
 
 If the client receives the aborted packet, it must report the error string to the user of the implementation in an implementation-defined manner.
 
 if the client times out before receiving either the connected or aborted packet, the implementation must report an implementation-defined error.
 
-When the server sees the connect packet, it begins establishing a connection.
-To establish a connection, a server must generate an unsigned 64-bit integer ID.
-This ID must be unique among all currently-established connections to said server.
-It must then encode and send the connected packet and immediately notify the application that a connection was established.
+When the server sees the connect packet and wishes to accept a connection, it must send the connected packet containing the id sent by the client.
 If the server continues to receive the connect packet, it must continue to respond with the connected packet but do nothing further; it is possible for the client to not yet know that it is connected due to packet loss.
-
-This specification reserves ID 0 for "no ID".  A server must never use an ID of 0 for a connection.  This enables implementations to use ID 0 for internal purposes, though no other meaning is assigned to it by this specification.
+If there is a UUID collision, the server is free to simply ignore the incoming packet.
+Given the unlikelihood of having two connections from two different IP/port pairs generating the same UUID, such behavior merely causes an astronomically small percent of connection attempts to time out.
 
 To refuse a connection, a server must send the aborted packet with an implementation-defined string as to the reason.
 This string must not be empty.
