@@ -68,6 +68,9 @@ This specification uses a mostly self-explanatory language to specify packet for
 
 - `id` means a 16-byte identifier computed as A UUID.
 
+- * means 0 or more. + means one or more.  These have the highest precedence.
+
+
 - Space means concatenate without padding.  For example, `part1:i8 part2:i8` is two 1-byte signed integers without padding.
 
 - Integer literals are noted as `1:u8`, `-5:i16`, etc.  String literals are `"this is a test."`.  In the case of string literals, the type is not ambiguous and so need not be specified.
@@ -228,7 +231,7 @@ Both parties involved in a fastnet connection must send a heartbeat to each othe
 
 Heartbeat packet counts do not include any packets exchanged before the establishment of a connection.
 
-An implementation must not place any semantinc meaning on anything in the heartbeat beyond using it for rough packet loss estimation.
+An implementation must not place any semantic meaning on anything in the heartbeat beyond using it for rough packet loss estimation.
 
 ##The Echo Channel##
 
@@ -243,3 +246,96 @@ When an implementation receives a packet on the echo channel for a connected Fas
 This channnel exists for implementations wishing to attempt provision of round-trip estimation.  A conforming implementation must implement the echo channel but is not required to provide a round-trip estimation algorithm.
 
 Endpoint is a value which must be generated from a UUID at connection startup and not changed thereafter.  uuid is a value which must be generated per-echo.  An implementation must not respond to echoes whose endpoint value matches their own, as this means that the other side of the connection sent it in response to a previous echo.
+
+##Frame Channels
+
+In order to support features like compression, Fastnet encapsulates messages into frames.
+These frames are then sent across the network using the algorithms  described below.
+Channels which have frames sent on them are known as frame channels.
+
+As will be seen later in this specification, Fastnet needs the ability to send large chunks of information to clients.
+this section lays out how to send a frame on a channel, either reliably or unreliably.
+
+###Frame Packets
+
+grammar:
+
+```
+data = 0: u8 sn: u64 flags: u8 payload: p
+ack = 1: u8 (sn: u64)+
+```
+
+Data packets represent chunks of data of arbetrary length.
+The flags byte has the following flags:
+
+- 0 is the start of frame flag.
+
+- 1is the end of frame flag.
+
+- 2 is the reliability flag.
+
+All other bits of the flags byte must be 0.
+
+The sequence number must be set to 0 for the first packet sent on some channel, 1 for the next, etc.
+If it reaches the maximum value of an unsigned 64-bit integer, it must wrap to zero.
+Implementations must handle wrapping sequence numbers, which will be described below.
+
+Borrowing from TCP terminology, ack is short for acknowledge.
+The ack packet is used to indicate reception of one or more packets.
+It must only be sent for reliable packets.
+It is possible to ack more than one packet in the same ack packet.
+Implementations must be able to respond to ack packets containing more than one sequence number.
+Implementations are not required to send ack packets with more than one sequence number.
+
+###Encoding Frames
+
+A frame is an array of bytes of any length.
+Any limits on the size of outgoing frames are implementation-defined.
+Limits on incoming frames are implicitly defined by the packet reception algorithm, defined later in this document.
+
+To send a frame, an implementation must implement the following algorithm or something functionally equivalent:
+
+- Split the frame into some number of chunks, putting each into a data packet with all fields set to 0.
+
+- Allocate the first and all proceeding packets the first available sequence number.
+
+- If the frame is being sent reliably (hereafter a reliable frame), set the reliability flag on all packets.
+
+- Set the start of frame flag on the first packet; set the end of frame flag on the last packet.  If these are the same packet, both flags should be set.
+
+- Send all packets using the algorithms described below.
+
+
+Frames must be split into chunks of data which can be encapsulated in a data packet of no more than 1000 bytes in total length.
+4 bytes are taken by the checksum, 2 by the channel identifier, 1 by the specifier for data  packet, 8 by the sequence number, and 1 by the  flags byte.
+This leaves a total of 984 bytes of payload for each data packet.
+
+In order to encode a frame, an implementation must split the frame into some number of chunks.
+the algorithm for doing this is implementation-defined.
+For the earliest stages of implementing Fastnet, using a simple fixed size is the easiest option, though this specification suggests that implementations taking this path allow the user to configure it.
+There are more detailed and involved approaches that work better, however, such as MTU estimation.
+
+###Sending Unreliable Data Packets
+
+To send an unreliable data packet, an implementation shall encode and broadcast it, as with all other unreliable packets.
+An implementation must refrain from sending any unreliable packets with larger sequence numbers than any pending reliable packets.
+How this case is handled is implementation-defined.
+Note that both Fastnet and applications using Fastnet must be able to deal with lost messages and/or frames, provided that those messages and/or frames are unreliable; this implies that an implementation may safely drop such packets.
+In practice, maintaining a short queue may provide astounding improvements in terms of lost frames for some use cases.
+
+###Sending Reliable Data packets
+
+An implementation must send reliable packets as if sending unreliable packets.
+The difference is that an implementation must remember and periodically resend unacked reliable packets.
+The resending algorithm is implementation-defined but should use exponential backoff if possible.
+This section will be updated once experience shows which method is the best.
+
+Only one reliable frame must be sent at a time, and these frames must be sent in order.
+If an implementation has any packets from the previous frame, it must not begin sending packets for any new reliable frames until the previous frame is completely sent.
+
+this requirement and that of the previous section combine to ensure that no receiver can receive any frames that come after the currently sending reliable frame until suchb time as the currently sending frame is received.
+Relaxing these constraints would cause out-of-order reception or require increasing the overhead of the data packet.
+If an application doesn't care about the ordering constraint, it can simply use more channels: this protocol has more than enough.
+
+It is possible to attack a fastnet implementation by never acking a packet.
+A fastnet implementation must provide facilities to detect this case and deal with it; at a minimum, it must be possible for the application developer to forceably drop such bad-behaved connections if they begin using too many resources.
