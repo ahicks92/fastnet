@@ -250,6 +250,7 @@ Endpoint is a value which must be generated from a UUID at connection startup an
 ##Frame Channels
 
 In order to support features like compression, Fastnet encapsulates messages into frames.
+A frame is a container whose maximum size is 4GB.
 These frames are then sent across the network using the algorithms  described below.
 Channels which have frames sent on them are known as frame channels.
 
@@ -277,8 +278,9 @@ The flags byte has the following flags:
 All other bits of the flags byte must be 0.
 
 The sequence number must be set to 0 for the first packet sent on some channel, 1 for the next, etc.
-If it reaches the maximum value of an unsigned 64-bit integer, it must wrap to zero.
-Implementations must handle wrapping sequence numbers, which will be described below.
+Sending enough data to exhaust the available sequence numbers is nearly impossible.
+A 64-bit sequence number is capable of handling at least 18 million terabytes of data, well beyond what can be handled by any consumer or professional-grade internet.
+To that end, an implementation must drop the connection if the sequence number for any channel is exhausted.
 
 Borrowing from TCP terminology, ack is short for acknowledge.
 The ack packet is used to indicate reception of one or more packets.
@@ -289,15 +291,22 @@ Implementations are not required to send ack packets with more than one sequence
 
 ###Encoding Frames
 
-A frame is an array of bytes of any length.
-Any limits on the size of outgoing frames are implementation-defined.
+A frame is an array of bytes of any length, with a header of the following form:
+
+```
+last_reliable: u64 length: u32
+```
+
+Any limits on the size of outgoing frames are implementation-defined, but are limited to 4GB because of the length field.
 Limits on incoming frames are implicitly defined by the packet reception algorithm, defined later in this document.
 
 To send a frame, an implementation must implement the following algorithm or something functionally equivalent:
 
-- Split the frame into some number of chunks, putting each into a data packet with all fields set to 0.
+- Get data from the user and add the header.
 
-- Allocate the first and all proceeding packets the first available sequence number.
+- Split the frame into some number of chunks, putting each into a data packet with all fields set to 0.  The entire header must be in the first chunk.
+
+- Allocate sequence numbers to all packets in the obvious manner.
 
 - If the frame is being sent reliably (hereafter a reliable frame), set the reliability flag on all packets.
 
@@ -305,6 +314,7 @@ To send a frame, an implementation must implement the following algorithm or som
 
 - Send all packets using the algorithms described below.
 
+- If this is a reliable frame, update the stored sequence number used to set `last_reliable` by setting it to the first sequence number assigned to this frame.  `last_reliable` is described below.
 
 Frames must be split into chunks of data which can be encapsulated in a data packet of no more than 1000 bytes in total length.
 4 bytes are taken by the checksum, 2 by the channel identifier, 1 by the specifier for data  packet, 8 by the sequence number, and 1 by the  flags byte.
@@ -315,13 +325,16 @@ the algorithm for doing this is implementation-defined.
 For the earliest stages of implementing Fastnet, using a simple fixed size is the easiest option, though this specification suggests that implementations taking this path allow the user to configure it.
 There are more detailed and involved approaches that work better, however, such as MTU estimation.
 
+Frame headers currently have 2 fields:
+
+- `last_reliable` must be set to the sequence number of the packet which started the previous reliable frame.
+If no reliable frame has been sent yet, `last_reliable` must be set to 0.
+
+- `length` must be set to the length of the frame.
+
 ###Sending Unreliable Data Packets
 
 To send an unreliable data packet, an implementation shall encode and broadcast it, as with all other unreliable packets.
-An implementation must refrain from sending any unreliable packets with larger sequence numbers than any pending reliable packets.
-How this case is handled is implementation-defined.
-Note that both Fastnet and applications using Fastnet must be able to deal with lost messages and/or frames, provided that those messages and/or frames are unreliable; this implies that an implementation may safely drop such packets.
-In practice, maintaining a short queue may provide astounding improvements in terms of lost frames for some use cases.
 
 ###Sending Reliable Data packets
 
@@ -330,12 +343,72 @@ The difference is that an implementation must remember and periodically resend u
 The resending algorithm is implementation-defined but should use exponential backoff if possible.
 This section will be updated once experience shows which method is the best.
 
-Only one reliable frame must be sent at a time, and these frames must be sent in order.
-If an implementation has any packets from the previous frame, it must not begin sending packets for any new reliable frames until the previous frame is completely sent.
-
-this requirement and that of the previous section combine to ensure that no receiver can receive any frames that come after the currently sending reliable frame until suchb time as the currently sending frame is received.
-Relaxing these constraints would cause out-of-order reception or require increasing the overhead of the data packet.
-If an application doesn't care about the ordering constraint, it can simply use more channels: this protocol has more than enough.
-
 It is possible to attack a fastnet implementation by never acking a packet.
 A fastnet implementation must provide facilities to detect this case and deal with it; at a minimum, it must be possible for the application developer to forceably drop such bad-behaved connections if they begin using too many resources.
+
+###Receiving Frames and Acking
+
+When an implementation receives data packets, it must store them in an area of memory known as the packet storage area.
+It is expected that most implementations will use multiple containers, but this specification treats it as one.
+
+The packet storage area must have a configurable size limit called the capacity.  This must be exposed to the user as number of bytes of payload to store before disregarding packets or frames.
+
+The capacity must default to 1 megabyte.
+It imposes an additional limit on the size of a frame, as well as constraining how many pending frames we can handle.
+The end user is responsible for configuring the capacity for their application and using the library in such a manner that the frame can be received by the receiver.
+
+We call a data packet for which we have sent an ack an acked packet; we call a packet for which we have not sent an ack an unacked packet.
+
+When an implementation receives a packet which would exhaust the capacity, it must follow the following algorithm:
+
+- If the packet is unreliable, drop it.
+
+- Otherwise, clear out unreliable packets until the new packet can fit; if this is impossible, drop the packet,.  It is implementation-defined as to whether or not unreliable packets are kept in the event that dropping them won't help.
+
+- Otherwise, if there are packets for the same channel and with sequence numbers higher than the packet being considered, drop these in the same manner as unreliable packets starting with the highest first.
+
+An implementation must ack reliable packets in a specific manner.
+
+Let there be two channel-specific variables, `x` and `y`.
+`x` is set to the first packet of the last received and assembled reliable frame. `y` is an accumulator initially set to zero which represents the sequence number of the next packet we are allowed to ack.
+Both variables are initialized to zero.
+For the purposes of this section, understand that references to these variables imply that the version being used must match the channel of the packet in question.
+
+An implementation must periodically scan the packet storage area, looking for unacked reliable packets to ack using the following algorithm or a functional equivalent:
+
+- First, iterate over all unacked reliable packets by increasing sequence number `sn`.  If `sn == y`, ack the packet and `y = sn+1`.
+
+- Next, iterate over the packet storage area looking for packets with the start of frame flag set.  Read the sequence number `x1` of the last reliable frame from the header that this frame begins.  If `x1 == x` and `sn >= y`, ack the packet, set `x` to `x1`, and set `y` to the sequence number of the just-acked packet plus 1.
+
+Finally, an implementation must assemble frames by periodically running the following algorithm or a functional equivalent.
+it is implementation defined how often the following algorithm runs, but it needs to be done frequently for the best performance.
+
+- An assemblable range is a set of packets for which:
+
+  - The first packet has the start of frame flag set.
+  
+  - The last packet has the end of frame flag set.
+  
+  - The sequence numbers of all packets are consecutive.
+  
+  - The packets are for the same channel.
+
+- Iterate over the packet storage area, and identify each assemblable range.  For each:
+
+  - Extract the sequence number of the last received reliable packet for the channel from the header found in the first packet.
+  
+  - If it is not equal to the last reliable frame we sent to the application, stop and ignore this range.
+  
+  - Otherwise, assemble the range and dispatch it to the application.
+  
+  - Set a channel-specific quantity, the ignore number, to one more than the sequence number of the last packet in the frame just dispatched.  Note that this quantity has a use besides this algorithm, which will be discussed below.
+  
+  - Drop any packets with a sequence number less than or equal to the ignore number (note: for debugging, this is a good place to assert that none of the packets you're about to drop are reliable).
+
+the ignore number is a global quantity.
+An implementation must immediately ack reliable packets whose sequence numbers are less than the ignore number.
+An implementation must not store or otherwise remember packets whose sequence number is less than the ignoore number.
+The purpose of the ignore number is to deal with losst acks.
+
+it is implementation-defined how many acks are put into one ack packet.
+
