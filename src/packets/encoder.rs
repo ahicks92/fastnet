@@ -233,6 +233,18 @@ impl Encodable for uuid::Uuid {
     }
 }
 
+
+impl Encodable for DataPacket {
+    fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
+        try!(self.sequence_number.encode(destination));
+        try!(self.flags.encode(destination));
+        for i in self.payload.iter() {
+            try!(destination.write_u8(*i).or(Err(PacketEncodingError::TooLarge)));
+        }
+        Ok(())
+    }
+}
+
 pub fn encode_packet<P: Borrow<Packet>>(packet: P, buffer: &mut [u8])->Result<usize, PacketEncodingError> {
     let mut writer = PacketWriter::new(buffer);
     packet.borrow().encode(&mut writer).map(|_| writer.written())

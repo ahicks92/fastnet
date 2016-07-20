@@ -26,6 +26,9 @@ pub enum Packet {
     Heartbeat{counter: u64, sent: u64, received: u64},
 
     Echo{endpoint: uuid::Uuid, uuid: uuid::Uuid},
+    
+    //Data{chan: i16, packet: DataPacket},
+    //Ack{chan: i16, sequence_number: u64}
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]

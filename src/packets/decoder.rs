@@ -225,6 +225,22 @@ impl Decodable for uuid::Uuid {
     }
 }
 
+impl Decodable for DataPacket {
+    type Output = DataPacket;
+
+    fn decode(source: &mut PacketReader)->Result<DataPacket, PacketDecodingError> {
+        let sn = try!(source.read_u64::<BigEndian>().or(Err(PacketDecodingError::TooSmall)));
+        let flags = try!(source.read_u8().or(Err(PacketDecodingError::TooSmall)));
+        let payload = source.slice[source.index..].to_vec();
+        source.index = source.slice.len()-1;
+        Ok(DataPacket {
+            sequence_number: sn,
+            flags: flags,
+            payload: payload,
+        })
+    }
+}
+
 pub fn decode_packet(buffer: &[u8])->Result<Packet, PacketDecodingError> {
     let mut reader = PacketReader::new(&buffer);
     Packet::decode(&mut reader)
