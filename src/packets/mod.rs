@@ -4,6 +4,7 @@ This module does not handle the checksum.  If it did, it would be incredibly dif
 pub use self::encoder::*;
 pub use self::decoder::*;
 use uuid;
+use std::cmp;
 
 mod encoder;
 mod encoder_tests;
@@ -61,14 +62,19 @@ pub const DATA_FRAME_START_BIT: u8 = 0;
 pub const DATA_FRAME_END_BIT: u8 = 1;
 pub const DATA_RELIABLE_BIT: u8 = 2;
 
-#[derive(Debug, Clone)]
+/**Represents the part of a data packet that a channel must use to assemble packets.
+
+The actual channel itself is stored in the enum variant.
+
+These are ordered by sequence number, for use in trees.*/
+#[derive(Debug, Clone, Eq, PartialEq, Ord, PartialOrd)]
 pub struct DataPacket {
     sequence_number: u64,
     flags: u8,
     payload: Vec<u8>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DataPacketBuilder {
     sequence_number: u64,
     is_reliable: bool,
