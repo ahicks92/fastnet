@@ -75,7 +75,23 @@ impl Decodable for Packet {
                 let uuid = try!(uuid::Uuid::decode(source));
                 return Ok(Echo{endpoint: endpoint, uuid: uuid});
             },
-            _ => {return Err(Invalid)},
+            //All other channels are frame channels.
+            chan@_ => {
+                let specifier  = try!(source.read_u8().or(Err(TooSmall)));
+                match specifier {
+                    DATA_PACKET_SPECIFIER => {
+                        let dp = try!(DataPacket::decode(source));
+                        return Ok(Packet::Data{chan: chan, packet: dp});
+                    },
+                    ACK_PACKET_SPECIFIER => {
+                        let sn = try!(source.read_u64::<BigEndian>().or(Err(TooSmall)));
+                        return Ok(Packet::Ack{chan: chan, sequence_number: sn});
+                    },
+                    _ => {
+                        return Err(Invalid)
+                    },
+                }
+            }
         }
     }
 }

@@ -27,8 +27,8 @@ pub enum Packet {
 
     Echo{endpoint: uuid::Uuid, uuid: uuid::Uuid},
     
-    //Data{chan: i16, packet: DataPacket},
-    //Ack{chan: i16, sequence_number: u64}
+    Data{chan: i16, packet: DataPacket},
+    Ack{chan: i16, sequence_number: u64}
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -64,6 +64,9 @@ pub const STATUS_EXTENSION_SPECIFIER: u8 = 2;
 pub const DATA_FRAME_START_BIT: u8 = 0;
 pub const DATA_FRAME_END_BIT: u8 = 1;
 pub const DATA_RELIABLE_BIT: u8 = 2;
+
+pub const DATA_PACKET_SPECIFIER: u8 = 0;
+pub const ACK_PACKET_SPECIFIER: u8 = 1;
 
 /**Represents the part of a data packet that a channel must use to assemble packets.
 

@@ -92,6 +92,16 @@ impl Encodable for Packet {
                 try!(endpoint.encode(destination));
                 try!(uuid.encode(destination));
             },
+            Packet::Data{chan, packet: ref p} => {
+                try!(chan.encode(destination));
+                try!(DATA_PACKET_SPECIFIER.encode(destination));
+                try!(p.encode(destination));
+            },
+            Packet::Ack{chan, sequence_number} => {
+                try!(chan.encode(destination));
+                try!(ACK_PACKET_SPECIFIER.encode(destination));
+                try!(sequence_number.encode(destination));
+            },
         }
     Ok(())
     }
