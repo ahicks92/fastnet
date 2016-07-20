@@ -114,3 +114,21 @@ Packet::Echo{
 endpoint: uuid::Uuid::from_bytes(&[0x2d, 0x83, 0x36, 0x9c, 0xc2, 0x26, 0x4a, 0x37, 0x97, 0x97, 0x32, 0x06, 0xf5, 0xb9, 0x50, 0x2f]).unwrap(),
 uuid: uuid::Uuid::from_bytes(&[0x2d, 0x83, 0x36, 0x9c, 0xc2, 0x26, 0x4a, 0x37, 0x97, 0x97, 0x32, 0x06, 0xf5, 0xb9, 0x50, 0x2f]).unwrap()
 });
+
+encoder_test!(test_encode_data_packet,
+[0u8, 5, 0, //channel and specifier.
+0, 0, 0, 0, 0, 0, 0, 1, //sequence number is 1.
+7, //flags is all 3.
+5, 10], //And payload.
+Packet::Data{
+    chan: 5,
+    packet: DataPacket {
+        sequence_number: 1,
+        flags: 7,
+        payload: vec![5, 10],
+    }
+});
+
+encoder_test!(test_encode_ack_packet,
+[0u8, 5, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+Packet::Ack{chan: 5, sequence_number: 1});

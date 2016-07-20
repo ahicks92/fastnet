@@ -248,7 +248,7 @@ impl Decodable for DataPacket {
         let sn = try!(source.read_u64::<BigEndian>().or(Err(PacketDecodingError::TooSmall)));
         let flags = try!(source.read_u8().or(Err(PacketDecodingError::TooSmall)));
         let payload = source.slice[source.index..].to_vec();
-        source.index = source.slice.len()-1;
+        source.index = source.slice.len();
         Ok(DataPacket {
             sequence_number: sn,
             flags: flags,
