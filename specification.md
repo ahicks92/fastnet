@@ -465,6 +465,8 @@ An implementation must periodically scan the packet storage area to identify pos
 When it finds one, it must immediately deliver it.
 How this is done is implementation-defined.
 
+After delivering a frame, the ignore number must be updated to the sequence number of the last packet in the frame; additionally, all packets in the packet storage areaa whose sequence number is now less than the ignore number must be dropped.
+
 ##Messages and Message Channels
 
 A message channel is a frame channel with no particular limits.
