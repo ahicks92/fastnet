@@ -146,6 +146,10 @@ impl DataPacket {
         (self.flags & DATA_FRAME_END_BIT) > 0
     }
 
+    pub fn sequence_number(&self)->u64 {
+        self.sequence_number
+    }
+
     pub fn borrow_payload(&self)->&Vec<u8> {
         &self.payload
     }
