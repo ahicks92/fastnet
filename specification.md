@@ -402,6 +402,8 @@ When a receiver receives a reliable packet that would take it over the per-chann
 
 - Next, if there are one or more reliable packets with higher sequence numbers whose absence would make enough room for the reliable packet, they must be dropped in favor of the packet.  Implementations should prefer reliable packets with the highest sequence number first: if the packet storage area is  a sorted array, implementations should iterate from highest to lowest index.
 
+- Next, if performing both of the above cases would result in enough room, perform both.
+
 - Finally, the packet should be dropped.
 
 If performing the first two above cases cannot make room for the packet, the packet should be dropped without modifying the contents of the packet storage area.
