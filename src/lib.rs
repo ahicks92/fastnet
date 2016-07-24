@@ -10,6 +10,7 @@ extern crate uuid;
 #[macro_use]
 extern crate log;
 
+mod constants;
 mod packets;
 mod server;
 mod status_translator;

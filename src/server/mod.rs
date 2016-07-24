@@ -3,6 +3,7 @@ use std::net;
 
 mod mio_server;
 mod connection;
+mod data_packet_handler;
 mod roundtrip_estimator;
 
 pub use self::mio_server::*;
