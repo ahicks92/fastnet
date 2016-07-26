@@ -84,7 +84,7 @@ pub struct DataPacket {
 //It would be nice to put this somewhere else, but we unfortunately can't.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
 pub struct FrameHeader {
-    pub last_reliable: u64,
+    pub last_reliable_frame: u64,
     pub length: u32,
 }
 
@@ -92,8 +92,8 @@ pub struct FrameHeader {
 pub struct DataPacketBuilder {
     sequence_number: u64,
     is_reliable: bool,
-    is_start: bool,
-    is_end: bool,
+    is_frame_start: bool,
+    is_frame_end: bool,
     payload: Vec<u8>,
     header: Option<FrameHeader>,
 }
@@ -116,8 +116,8 @@ If a header is provided, the packet automatically has its first flag set.*/
         DataPacketBuilder {
             sequence_number: sequence_number,
             is_reliable: false,
-            is_start: header.is_some(),
-            is_end: false,
+            is_frame_start: header.is_some(),
+            is_frame_end: false,
             payload: payload,
             header: header,
         }
@@ -139,13 +139,13 @@ If a header is provided, the packet automatically has its first flag set.*/
         self
     }
 
-    pub fn set_start(mut self, start: bool)->Self {
-        self.is_start = start;
+    pub fn set_frame_start(mut self, start: bool)->Self {
+        self.is_frame_start = start;
         self
     }
 
-    pub fn set_end(mut self, end: bool)->Self {
-        self.is_end = end;
+    pub fn set_frame_end(mut self, end: bool)->Self {
+        self.is_frame_end = end;
         self
     }
 
@@ -156,11 +156,11 @@ If a header is provided, the packet automatically has its first flag set.*/
 
     /**Panics if the packet is invalid. Building invalid packets is a bug.*/
     pub fn build(self)->DataPacket {
-        if self.is_start != self.header.is_some() {
-            panic!("Header and start flag mismatch. Start flag = {:?}, header = {:?}", self.is_start, self.header);
+        if self.is_frame_start != self.header.is_some() {
+            panic!("Header and start flag mismatch. Start flag = {:?}, header = {:?}", self.is_frame_start, self.header);
         }
-        let start_flag  = (self.is_start as u8) << DATA_FRAME_START_BIT;
-        let end_flag = (self.is_end as u8) << DATA_FRAME_END_BIT;
+        let start_flag  = (self.is_frame_start as u8) << DATA_FRAME_START_BIT;
+        let end_flag = (self.is_frame_end as u8) << DATA_FRAME_END_BIT;
         let reliable_flag = (self.is_reliable as u8) << DATA_RELIABLE_BIT;
         let flags = start_flag | end_flag | reliable_flag;
         DataPacket {
@@ -207,7 +207,7 @@ impl DataPacket {
 }
 
 impl FrameHeader {
-    pub fn new(last_reliable: u64, length: u32)->FrameHeader {
-        FrameHeader{last_reliable: last_reliable, length: length}
+    pub fn new(last_reliable_frame: u64, length: u32)->FrameHeader {
+        FrameHeader{last_reliable_frame: last_reliable_frame, length: length}
     }
 }

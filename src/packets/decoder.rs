@@ -266,9 +266,9 @@ impl Decodable for FrameHeader {
     type Output = FrameHeader;
 
     fn decode(source: &mut PacketReader)->Result<FrameHeader, PacketDecodingError> {
-        let last_reliable = try!(u64::decode(source));
+        let last_reliable_frame = try!(u64::decode(source));
         let length = try!(u32::decode(source));
-        Ok(FrameHeader {last_reliable: last_reliable, length: length})
+        Ok(FrameHeader {last_reliable_frame: last_reliable_frame, length: length})
             
     }
 }

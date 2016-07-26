@@ -262,7 +262,7 @@ impl Encodable for DataPacket {
 impl Encodable for FrameHeader {
     fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
         use self::PacketEncodingError::*;
-        try!(self.last_reliable.encode(destination));
+        try!(self.last_reliable_frame.encode(destination));
         try!(self.length.encode(destination));
         Ok(())
     }

@@ -114,7 +114,7 @@ impl DataPacketHandler {
         );
         for index in index_buff.iter() {
             let header = self.acked_packets[*index].get_header().unwrap(); //This is a start of frame; bug if it doesn't have one.
-            if header.last_reliable != self.last_reliable_frame {break;} //There's a reliable frame we don't have yet.
+            if header.last_reliable_frame != self.last_reliable_frame {break;} //There's a reliable frame we don't have yet.
             let mut end_index = *index;
             let mut sn = self.acked_packets[*index].sequence_number();
             for p in self.acked_packets[*index..].iter() {
