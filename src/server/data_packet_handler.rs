@@ -3,7 +3,14 @@ use super::super::packets::*;
 use super::super::async;
 use super::super::constants;
 use std::net;
+use std::thread;
+use std::cell;
+use std::ops::{Deref, DerefMut};
 
+
+//These are used by the message delivery logic.
+thread_local!(static message_buffer: cell::RefCell<Vec<u8>> = cell::RefCell::new(Vec::default()));
+thread_local!(static index_buffer: cell::RefCell<Vec<usize>> = cell::RefCell::new(Vec::default()));
 
 /**handles acking packets, etc.*/
 #[derive(Debug)]
@@ -85,6 +92,59 @@ impl DataPacketHandler {
             }
             //Otherwise it's a duplicate, so we do nothing.
         }
+    }
+
+    //Delivery logic.  Returns the number of packets delivered.
+    pub fn deliver<F: Fn(&Vec<u8>)>(&mut self, destination: F)->usize {
+        //Extract the two TLS keys.
+        message_buffer.with(|message_buff| {
+            index_buffer.with(|index_buff| {
+                self.deliver_helper(destination, message_buff.borrow_mut().deref_mut(), index_buff.borrow_mut().deref_mut())
+            })
+        })
+    }
+
+    fn deliver_helper<F: Fn(&Vec<u8>)>(&mut self, destination: F, message_buff: &mut Vec<u8>, index_buff: &mut Vec<usize>)->usize {
+        message_buff.clear();
+        index_buff.clear();
+        let mut delivered_count = 0;
+        //Collect all the starting packets into index_buff.
+        index_buff.extend(
+            self.acked_packets.iter().enumerate().filter(|i| i.1.is_frame_start()).map(|i| i.0)
+        );
+        for index in index_buff.iter() {
+            let header = self.acked_packets[*index].get_header().unwrap(); //This is a start of frame; bug if it doesn't have one.
+            if header.last_reliable != self.last_reliable_frame {break;} //There's a reliable frame we don't have yet.
+            let mut end_index = *index;
+            let mut sn = self.acked_packets[*index].sequence_number();
+            for p in self.acked_packets[*index..].iter() {
+                //Handle the first one, possibly breaking out now.
+                if p.sequence_number() == sn {
+                    if p.is_frame_end() {break;} //It's a 1-packet message.
+                    continue; //Otherwise we skip it.
+                }
+                //Either it starts a new frame, may end the current frame, or is a gap.
+                //In all three cases, we break out.
+                if p.is_frame_start() || p.is_frame_end() || p.sequence_number()-sn != 1 {break;}
+                end_index += 1;
+                sn += 1;
+            }
+            //We know that the range is consecutive and that the last reliable frame condition was met.
+            //If the start and end are not true, it's undeliverable and we stop.
+            if self.acked_packets[*index].is_frame_start() == false || self.acked_packets[end_index].is_frame_end() == false {break;}
+            //Otherwise, we need to assemble the frame and remove the packets.
+            let is_reliable = self.acked_packets[*index].is_reliable();
+            let new_last_reliable = self.acked_packets[*index].sequence_number();
+            for p in self.acked_packets.drain(*index..end_index+1) {
+                let mut payload = p.into_payload();
+                self.contained_payload -= payload.len();
+                message_buff.append(&mut payload);
+            }
+            if is_reliable {self.last_reliable_frame = new_last_reliable;}
+            delivered_count += 1;
+            destination(&message_buff);
+        }
+        delivered_count
     }
 
     //Implements the packet dropping logic to allow incoming reliable packets to evict other, less important packets.

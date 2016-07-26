@@ -247,13 +247,29 @@ impl Decodable for DataPacket {
     fn decode(source: &mut PacketReader)->Result<DataPacket, PacketDecodingError> {
         let sn = try!(source.read_u64::<BigEndian>().or(Err(PacketDecodingError::TooSmall)));
         let flags = try!(source.read_u8().or(Err(PacketDecodingError::TooSmall)));
+        let mut header = None;
+        if (flags & (1<<DATA_FRAME_START_BIT)) > 0 {
+            header = Some(try!(FrameHeader::decode(source)));
+        }
         let payload = source.slice[source.index..].to_vec();
         source.index = source.slice.len();
         Ok(DataPacket {
             sequence_number: sn,
             flags: flags,
             payload: payload,
+            header: header,
         })
+    }
+}
+
+impl Decodable for FrameHeader {
+    type Output = FrameHeader;
+
+    fn decode(source: &mut PacketReader)->Result<FrameHeader, PacketDecodingError> {
+        let last_reliable = try!(u64::decode(source));
+        let length = try!(u32::decode(source));
+        Ok(FrameHeader {last_reliable: last_reliable, length: length})
+            
     }
 }
 

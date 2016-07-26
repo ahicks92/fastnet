@@ -78,6 +78,14 @@ pub struct DataPacket {
     sequence_number: u64,
     flags: u8,
     payload: Vec<u8>,
+    header: Option<FrameHeader>
+}
+
+//It would be nice to put this somewhere else, but we unfortunately can't.
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Default)]
+pub struct FrameHeader {
+    pub last_reliable: u64,
+    pub length: u32,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -87,6 +95,7 @@ pub struct DataPacketBuilder {
     is_start: bool,
     is_end: bool,
     payload: Vec<u8>,
+    header: Option<FrameHeader>,
 }
 
 impl DataPacketBuilder {
@@ -95,47 +104,71 @@ impl DataPacketBuilder {
         DataPacketBuilder::with_payload(sequence_number, Vec::default())
     }
 
-    /**Configures the builder for mid-frame, unreliable but using the specified payload.*/
+    /**Makes a packet with the specified payload, no header, and all flags cleared.*/
     pub fn with_payload(sequence_number: u64, payload: Vec<u8>)->DataPacketBuilder {
+        DataPacketBuilder::with_payload_and_header(sequence_number, payload, None)
+    }
+
+    /**Configures the builder for mid-frame and using the specified header.
+
+If a header is provided, the packet automatically has its first flag set.*/
+    pub fn with_payload_and_header(sequence_number: u64, payload: Vec<u8>, header: Option<FrameHeader>)->DataPacketBuilder {
         DataPacketBuilder {
             sequence_number: sequence_number,
             is_reliable: false,
-            is_start: false,
+            is_start: header.is_some(),
             is_end: false,
             payload: payload,
+            header: header,
         }
     }
 
-    pub fn set_payload(&mut self, payload: Vec<u8>) {
+    pub fn set_payload(mut self, payload: Vec<u8>)->Self {
         self.payload = payload;
+        self
     }
 
-    pub fn set_reliable(&mut self, reliable: bool) {
+    pub fn set_header(mut self, header: Option<FrameHeader>)->Self {
+        self.header = header;
+        self.is_reliable = header.is_some();
+        self
+    }
+
+    pub fn set_reliable(mut self, reliable: bool)->Self {
         self.is_reliable = reliable;
+        self
     }
 
-    pub fn set_start(&mut self, start: bool) {
+    pub fn set_start(mut self, start: bool)->Self {
         self.is_start = start;
+        self
     }
 
-    pub fn set_end(&mut self, end: bool) {
+    pub fn set_end(mut self, end: bool)->Self {
         self.is_end = end;
+        self
     }
 
-    pub fn set_sequence_number(&mut self, sequence_number: u64) {
+    pub fn set_sequence_number(mut self, sequence_number: u64)->Self {
         self.sequence_number = sequence_number;
+        self
     }
 
-    pub fn build(self)->Option<DataPacket> {
+    /**Panics if the packet is invalid. Building invalid packets is a bug.*/
+    pub fn build(self)->DataPacket {
+        if self.is_start != self.header.is_some() {
+            panic!("Header and start flag mismatch. Start flag = {:?}, header = {:?}", self.is_start, self.header);
+        }
         let start_flag  = (self.is_start as u8) << DATA_FRAME_START_BIT;
         let end_flag = (self.is_end as u8) << DATA_FRAME_END_BIT;
         let reliable_flag = (self.is_reliable as u8) << DATA_RELIABLE_BIT;
         let flags = start_flag | end_flag | reliable_flag;
-        Some(DataPacket {
+        DataPacket {
             sequence_number: self.sequence_number,
             flags: flags,
             payload: self.payload,
-        })
+            header: self.header,
+        }
     }
 }
 
@@ -156,11 +189,25 @@ impl DataPacket {
         self.sequence_number
     }
 
+    pub fn borrow_header(&self)->Option<&FrameHeader> {
+        self.header.as_ref()
+    }
+
+    pub fn get_header(&self)->Option<FrameHeader> {
+        self.header
+    }
+
     pub fn borrow_payload(&self)->&Vec<u8> {
         &self.payload
     }
 
     pub fn into_payload(self)->Vec<u8> {
         self.payload
+    }
+}
+
+impl FrameHeader {
+    pub fn new(last_reliable: u64, length: u32)->FrameHeader {
+        FrameHeader{last_reliable: last_reliable, length: length}
     }
 }

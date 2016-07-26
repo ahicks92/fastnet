@@ -118,7 +118,24 @@ uuid: uuid::Uuid::from_bytes(&[0x2d, 0x83, 0x36, 0x9c, 0xc2, 0x26, 0x4a, 0x37, 0
 encoder_test!(test_encode_data_packet,
 [0u8, 5, 0, //channel and specifier.
 0, 0, 0, 0, 0, 0, 0, 1, //sequence number is 1.
-7, //flags is all 3.
+6, //flags skips first, but see below.
+5, 10], //And payload.
+Packet::Data{
+    chan: 5,
+    packet: DataPacket {
+        sequence_number: 1,
+        flags: 6,
+        payload: vec![5, 10],
+        header: None,
+    }
+});
+
+encoder_test!(test_encode_data_packet_with_header,
+[0u8, 5, 0, //channel and specifier.
+0, 0, 0, 0, 0, 0, 0, 1, //sequence number is 1.
+7,
+0, 0, 0, 0, 0, 0, 0, 5,
+0, 0, 0, 5,
 5, 10], //And payload.
 Packet::Data{
     chan: 5,
@@ -126,6 +143,7 @@ Packet::Data{
         sequence_number: 1,
         flags: 7,
         payload: vec![5, 10],
+        header: Some(FrameHeader{last_reliable: 5, length: 5}),
     }
 });
 

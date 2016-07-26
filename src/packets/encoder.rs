@@ -246,11 +246,24 @@ impl Encodable for uuid::Uuid {
 
 impl Encodable for DataPacket {
     fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
+        use self::PacketEncodingError::*;
         try!(self.sequence_number.encode(destination));
         try!(self.flags.encode(destination));
-        for i in self.payload.iter() {
-            try!(destination.write_u8(*i).or(Err(PacketEncodingError::TooLarge)));
+        if let Some(h) = self.header {
+            try!(h.encode(destination));
         }
+        for i in self.payload.iter() {
+            try!(destination.write_u8(*i).or(Err(TooLarge)));
+        }
+        Ok(())
+    }
+}
+
+impl Encodable for FrameHeader {
+    fn encode(&self, destination: &mut PacketWriter)->Result<(), PacketEncodingError> {
+        use self::PacketEncodingError::*;
+        try!(self.last_reliable.encode(destination));
+        try!(self.length.encode(destination));
         Ok(())
     }
 }
