@@ -15,5 +15,6 @@ mod packets;
 mod server;
 mod status_translator;
 mod async;
+mod frame;
 
 pub use async::*;

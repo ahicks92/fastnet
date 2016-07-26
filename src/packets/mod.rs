@@ -68,6 +68,8 @@ pub const DATA_RELIABLE_BIT: u8 = 2;
 pub const DATA_PACKET_SPECIFIER: u8 = 0;
 pub const ACK_PACKET_SPECIFIER: u8 = 1;
 
+pub const FRAME_HEADER_SIZE: usize = 12; //64-bit sequence number and 32-bit length.
+
 /**Represents the part of a data packet that a channel must use to assemble packets.
 
 The actual channel itself is stored in the enum variant.

@@ -143,7 +143,7 @@ Packet::Data{
         sequence_number: 1,
         flags: 7,
         payload: vec![5, 10],
-        header: Some(FrameHeader{last_reliable: 5, length: 5}),
+        header: Some(FrameHeader{last_reliable_frame: 5, length: 5}),
     }
 });
 
