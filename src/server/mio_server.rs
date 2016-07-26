@@ -1,7 +1,7 @@
 use super::*;
-use super::super::async;
-use super::super::packets::{self, Encodable, Decodable};
-use super::super::status_translator;
+use async;
+use packets::{self, Encodable, Decodable};
+use status_translator;
 use crc::crc32;
 use byteorder::{self, BigEndian, ByteOrder};
 use std::collections;

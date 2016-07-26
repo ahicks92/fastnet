@@ -1,12 +1,12 @@
 use super::*;
-use super::super::async;
+use async;
 use std::time;
 use std::collections;
 use std::cmp;
 use std::net;
 use std::ops;
 use uuid;
-use super::super::packets::{Packet};
+use packets::{Packet};
 
 
 #[derive(Debug)]pub struct RoundtripEstimator {

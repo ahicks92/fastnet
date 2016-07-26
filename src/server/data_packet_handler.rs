@@ -1,7 +1,7 @@
 use super::*;
-use super::super::packets::*;
-use super::super::async;
-use super::super::constants;
+use packets::*;
+use async;
+use constants;
 use std::net;
 use std::thread;
 use std::cell;

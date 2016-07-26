@@ -1,7 +1,7 @@
 use super::*;
-use super::super::packets::*;
-use super::super::async;
-use super::super::status_translator;
+use packets::*;
+use async;
+use status_translator;
 use std::net;
 use std::borrow::{Borrow};
 use std::time;
