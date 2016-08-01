@@ -62,9 +62,21 @@ Vec<u8>: iter::Extend<Q> {
     }
 }
 
+impl<'A, T, Q> iter::ExactSizeIterator for FrameEncoder<'A, T>
+where T: iter::ExactSizeIterator+iter::Iterator<Item=Q>,
+Q: borrow::Borrow<u8>,
+Vec<u8>: iter::Extend<Q> {
+    fn len(&self)->usize {
+        let mut res = self.iter.len()/CHUNK_SIZE;
+        if res*CHUNK_SIZE < self.iter.len() {res += 1}
+        if res ==0 && self.first == true {res = 1}
+        return res;
+    }
+}
+
 
 #[test]
-fn test_frames() {
+fn test_frame_encoding() {
     let test_data: Vec<u8> = vec![1u8; 1000];
     //channel 100, start at sn 3, last reliable is 1.
     let mut got_packets = FrameEncoder::new(&mut test_data.iter(), 100, 3, 1, false).collect::<Vec<_>>();
@@ -87,4 +99,19 @@ fn test_frames() {
         }
     ];
     assert_eq!(got_packets, expected_packets);
+}
+
+macro_rules! lentest {
+    ($a: expr, $b: expr) => {
+        assert_eq!(FrameEncoder::new(&mut [0u8; $a].iter(), 0, 0, 0, false).len(), $b);
+    }
+}
+
+#[test]
+fn test_frame_exact_size_iterator() {
+    lentest!(0, 1);
+    lentest!(499, 1);
+    lentest!(501, 2);
+    lentest!(1000, 2);
+    lentest!(2001, 5);
 }
