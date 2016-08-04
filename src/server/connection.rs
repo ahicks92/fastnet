@@ -28,6 +28,7 @@ pub struct Connection {
     pub roundtrip_estimator: RoundtripEstimator,
     //For timing out.
     pub last_received_packet_time: time::Instant,
+    pub ack_manager: AckManager,
 }
 
 const MAX_STATUS_ATTEMPTS: u32 = 10;
@@ -46,6 +47,7 @@ impl Connection {
             endpoint_id: uuid::Uuid::new_v4(),
             roundtrip_estimator: RoundtripEstimator::new(5),
             last_received_packet_time: time::Instant::now(),
+            ack_manager: AckManager::new(),
         }
     }
 
@@ -193,6 +195,10 @@ impl Connection {
             },
             ConnectionState::Established => {
                 self.roundtrip_estimator.tick(self.address, self.endpoint_id, service);
+                //Send the acks.
+                for i in self.ack_manager.iter_needs_ack() {
+                    service.send(i, self.address);
+                }
             },
             _ => {},
         }

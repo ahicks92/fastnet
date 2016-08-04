@@ -9,6 +9,7 @@ extern crate crc;
 extern crate uuid;
 #[macro_use]
 extern crate log;
+extern crate time;
 
 mod constants;
 mod packets;
