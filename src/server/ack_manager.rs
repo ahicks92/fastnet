@@ -26,7 +26,7 @@ impl AckManager {
     /**Handles either ack or data.
 
 Returns true if the packet was handled. Otherwise false.*/
-    pub fn submit__packet(&mut self, packet: packets::Packet)->bool {
+    pub fn submit_packet(&mut self, packet: packets::Packet)->bool {
         let mut channel = 0i16;
         let mut sn = 0u64;
         match packet {

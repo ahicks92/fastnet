@@ -98,6 +98,9 @@ impl Connection {
                 self.handle_aborted(message, service);
                 true
             },
+            Packet::Ack{..} => {
+                self.ack_manager.submit_packet(packet.clone())
+            }
             _ => false
         }
     }
